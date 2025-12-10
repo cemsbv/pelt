@@ -103,7 +103,7 @@ impl Pelt {
         let mut subproblems = Vec::with_capacity(self.jump);
 
         // Find the initial changepoint indices
-        for breakpoint in self.proposed_indices(signal.len()) {
+        for breakpoint in self.proposed_indices(signal.nrows()) {
             // Add points from 0 to the current breakpoint as admissible
             let new_admission_point =
                 (breakpoint.saturating_sub(self.min_length) / self.jump) * self.jump;
@@ -117,7 +117,7 @@ impl Pelt {
                 };
 
                 // Handle invalid case for too short segments
-                if breakpoint - admissible_start < self.min_length {
+                if breakpoint.saturating_sub(*admissible_start) < self.min_length {
                     return Err(Error::NotEnoughPoints);
                 }
 
@@ -168,7 +168,7 @@ impl Pelt {
 
         // Get the best partition
         let best_part = partitions
-            .get(&signal.len())
+            .get(&signal.nrows())
             .ok_or(Error::NoSegmentsFound)?;
         // Extract the indices
         let mut indices = best_part.keys().map(|range| range.end).collect::<Vec<_>>();

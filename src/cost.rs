@@ -126,9 +126,7 @@ mod tests {
     /// Check the median function.
     #[test]
     fn median() {
-        assert_eq!(
-            super::median(ndarray::array![10.0, 30.0, 20.0].view()),
-            20.0
-        );
+        let array = ndarray::array![10.0, 30.0, 20.0];
+        assert_eq!(super::median(array.view()), 20.0);
     }
 }

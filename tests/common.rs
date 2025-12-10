@@ -3,6 +3,7 @@
 use ndarray::Array2;
 
 /// Load the signals from a text file.
+#[must_use]
 pub fn load_signals_fixture(file: &'static str) -> Array2<f64> {
     // Load the signal dataset
     let data = file

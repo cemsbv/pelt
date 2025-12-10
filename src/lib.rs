@@ -29,6 +29,7 @@ pub struct Pelt {
 
 impl Pelt {
     /// Construct a new PELT instance with default values.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             segment_cost_function: SegmentCostFunction::default(),
@@ -38,6 +39,7 @@ impl Pelt {
     }
 
     /// Set the segment model, also known as the loss function.
+    #[must_use]
     pub const fn with_segment_cost_function(mut self, model: SegmentCostFunction) -> Self {
         self.segment_cost_function = model;
 
@@ -45,6 +47,7 @@ impl Pelt {
     }
 
     /// Set the subsample, one every `jump` points.
+    #[must_use]
     pub const fn with_jump(mut self, jump: usize) -> Self {
         self.jump = jump;
 
@@ -52,6 +55,7 @@ impl Pelt {
     }
 
     /// Set the minimum segment length.
+    #[must_use]
     pub const fn with_minimum_segment_length(mut self, minimum_segment_length: usize) -> Self {
         // Convert None to 0, other numbers to their number representation
         self.min_length = minimum_segment_length;
@@ -62,6 +66,11 @@ impl Pelt {
     /// Fit on a data set.
     ///
     /// All signals should be equal length.
+    ///
+    /// # Errors
+    ///
+    /// - When the input is invalid.
+    /// - When anything went wrong during calculation.
     pub fn predict<'a>(
         &self,
         signal: impl AsArray<'a, f64, Ix2>,

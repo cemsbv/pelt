@@ -2,8 +2,7 @@
 
 use std::ops::Range;
 
-use medians::Medianf64 as _;
-use ndarray::ArrayView2;
+use ndarray::{ArrayView1, ArrayView2};
 
 /// Segment model cost function, also known as the loss function.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -29,8 +28,7 @@ impl SegmentCostFunction {
                         let sub = column.slice(ndarray::s!(range.clone()));
 
                         // Calculate the median
-                        let sub_vec = sub.to_vec();
-                        let median = sub_vec.medf_unchecked();
+                        let median = median(sub);
 
                         sub.mapv(|signal| (signal - median).abs()).sum()
                     })
@@ -55,6 +53,35 @@ impl SegmentCostFunction {
     }
 }
 
+/// Fast median calculation.
+fn median(array: ArrayView1<f64>) -> f64 {
+    let len = array.len();
+
+    // Check the easy cases
+    match len {
+        0 => return 0.0,
+        1 => return array[0],
+        2 => return array[0].midpoint(array[1]),
+        _ => (),
+    }
+
+    let mut array = array.to_vec();
+
+    // Handle the case of even and odd arrays
+    if len.is_multiple_of(2) {
+        // Take the two middle values
+        let (_, left, rest) = array.select_nth_unstable_by(len / 2 - 1, f64::total_cmp);
+        let (_, right, _) = rest.select_nth_unstable_by(0, f64::total_cmp);
+
+        left.midpoint(*right)
+    } else {
+        // Take the single midpoint value
+        let (_, mid, _) = array.select_nth_unstable_by(len / 2, f64::total_cmp);
+
+        *mid
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,5 +98,14 @@ mod tests {
     fn l2() {
         let array = ndarray::array![[10.0], [30.0], [20.0]];
         assert_eq!(SegmentCostFunction::L2.loss(array.view(), 0..3), 200.0);
+    }
+
+    /// Check the median function.
+    #[test]
+    fn median() {
+        assert_eq!(
+            super::median(ndarray::array![10.0, 30.0, 20.0].view()),
+            20.0
+        );
     }
 }

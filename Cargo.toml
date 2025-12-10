@@ -14,7 +14,6 @@ readme = "README.md"
 
 [dependencies]
 ahash = "0.8.12"
-medians = "3.0.12"
 ndarray = "0.17.1"
 thiserror = "2.0.17"
 

@@ -18,6 +18,7 @@ use num_traits::{Float, NumCast, float::TotalOrder};
 /// - `segment_cost_function`: [`SegmentCostFunction::L1`]
 /// - `jump`: `5`
 /// - `min_length`: `2`
+/// - `keep_initial_zero`: `false`
 #[derive(Debug, Clone, Copy)]
 pub struct Pelt {
     /// Segment model.
@@ -26,6 +27,8 @@ pub struct Pelt {
     jump: usize,
     /// Minimum segment length.
     min_length: usize,
+    /// Whether to keep the initial `0` value of the output indices.
+    keep_initial_zero: bool,
 }
 
 impl Pelt {
@@ -36,6 +39,7 @@ impl Pelt {
             segment_cost_function: SegmentCostFunction::default(),
             jump: 5,
             min_length: 2,
+            keep_initial_zero: false,
         }
     }
 
@@ -58,8 +62,15 @@ impl Pelt {
     /// Set the minimum segment length.
     #[must_use]
     pub const fn with_minimum_segment_length(mut self, minimum_segment_length: usize) -> Self {
-        // Convert None to 0, other numbers to their number representation
         self.min_length = minimum_segment_length;
+
+        self
+    }
+
+    /// Set whether to keep the initial zero value of the output indices.
+    #[must_use]
+    pub const fn with_keep_initial_zero(mut self, keep_initial_zero: bool) -> Self {
+        self.keep_initial_zero = keep_initial_zero;
 
         self
     }
@@ -170,13 +181,17 @@ impl Pelt {
         let best_part = partitions
             .get(&signal.nrows())
             .ok_or(Error::NoSegmentsFound)?;
+
         // Extract the indices
         let mut indices = best_part.keys().map(|range| range.end).collect::<Vec<_>>();
 
         // Sort indices
         indices.sort_unstable();
-        // Remove the zero value
-        indices.remove(0);
+
+        if !self.keep_initial_zero {
+            // Remove the zero value
+            indices.remove(0);
+        }
 
         Ok(indices)
     }

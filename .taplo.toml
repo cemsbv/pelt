@@ -1,0 +1,34 @@
+include = ["**/*.toml"]
+
+[formatting]
+reorder_keys = false
+allowed_blank_lines = 1
+
+[[rule]]
+include = ["**/Cargo.toml"]
+
+[rule.schema]
+path = "https://json.schemastore.org/cargo.json"
+
+[[rule]]
+keys = [
+  "dependencies",
+  "dev-dependencies",
+  "build-dependencies",
+  "workspace.dependencies",
+  "workspace.dev-dependencies",
+  "workspace.build-dependencies",
+]
+
+[rule.formatting]
+inline_table_expand = false
+reorder_keys = true
+reorder_inline_tables = true
+
+[[rule]]
+keys = ["features"]
+
+[rule.formatting]
+column_width = 40
+array_auto_collapse = false
+reorder_arrays = true

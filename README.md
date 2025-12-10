@@ -1,4 +1,4 @@
-[![Crates.io][ci]][cl] ![MIT/Apache][li] [![docs.rs][di]][dl] ![ci][bci]
+[![Crates.io][ci]][cl] ![MPL-2.0][li] [![docs.rs][di]][dl] ![ci][bci]
 
 [ci]: https://img.shields.io/crates/v/pelt.svg
 [cl]: https://crates.io/crates/pelt/

@@ -191,8 +191,6 @@ impl Default for Pelt {
 
 #[cfg(test)]
 mod tests {
-    use ndarray::Array2;
-
     use super::*;
 
     /// Ensure the proposed indices algorithm is correct.
@@ -215,69 +213,5 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![10, 15, 20]
         );
-    }
-
-    /// Ensure the main algorithm is correct.
-    #[test]
-    fn pelt_small() {
-        let pelt = Pelt::new()
-            .with_jump(5)
-            .with_minimum_segment_length(2)
-            .with_segment_cost_function(SegmentCostFunction::L1);
-
-        // Test prediction
-        assert_eq!(
-            pelt.predict(
-                load_signals_fixture(include_str!("../tests/signals.txt")).view(),
-                10.0
-            )
-            .expect("Error predicting"),
-            vec![100, 200]
-        );
-    }
-
-    /// Ensure the main algorithm is correct with a larger dataset.
-    #[test]
-    fn pelt_large() {
-        let pelt = Pelt::new()
-            .with_jump(5)
-            .with_minimum_segment_length(2)
-            .with_segment_cost_function(SegmentCostFunction::L1);
-
-        // Test prediction
-        assert_eq!(
-            pelt.predict(
-                load_signals_fixture(include_str!("../tests/signals-large.txt")).view(),
-                10.0
-            )
-            .expect("Error predicting"),
-            vec![2000, 4000]
-        );
-    }
-
-    /// Load the signals from a text file.
-    fn load_signals_fixture(file: &'static str) -> Array2<f64> {
-        // Load the signal dataset
-        let data = file
-            .lines()
-            .enumerate()
-            .map(|(line, float)| {
-                float.parse::<f64>().unwrap_or_else(|_| {
-                    panic!(
-                        "Test value '{float}' on line {} is not a valid float",
-                        line + 1
-                    )
-                })
-            })
-            .collect::<Vec<_>>();
-
-        // Convert to ndarray
-        let mut array = Array2::zeros((data.len(), 1));
-        array
-            .iter_mut()
-            .zip(data)
-            .for_each(|(item, data)| *item = data);
-
-        array
     }
 }

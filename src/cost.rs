@@ -17,47 +17,63 @@ pub enum SegmentCostFunction {
 
 impl SegmentCostFunction {
     /// Calculate the loss.
+    #[inline]
     pub(crate) fn loss<T>(self, signal: ArrayView2<T>, range: Range<usize>) -> T
     where
         T: Float + TotalOrder + NumCast + Sum,
     {
         match self {
-            Self::L1 => {
-                // Total loss across all axes
-                signal
-                    .columns()
-                    .into_iter()
-                    .map(|column| {
-                        // Take the sub slice of the 2D object
-                        let sub = column.slice(ndarray::s!(range.clone()));
-
-                        // Calculate the median
-                        let median = median(sub);
-
-                        sub.mapv(|signal| (signal - median).abs()).sum()
-                    })
-                    .sum()
-            }
-            Self::L2 => {
-                // Total loss across all axes
-                signal
-                    .columns()
-                    .into_iter()
-                    .map(|column| {
-                        // Take the sub slice of the 2D object
-                        let sub = column.slice(ndarray::s!(range.clone()));
-
-                        // Calculate variance
-                        let mean = sub.sum() / T::from(sub.len()).unwrap_or_else(T::zero);
-                        sub.iter().map(|value| (*value - mean).powi(2)).sum::<T>()
-                    })
-                    .sum()
-            }
+            Self::L1 => l1(signal, range),
+            Self::L2 => l2(signal, range),
         }
     }
 }
 
+/// L1 loss function.
+#[inline]
+fn l1<T>(signal: ArrayView2<T>, range: Range<usize>) -> T
+where
+    T: Float + TotalOrder + NumCast + Sum,
+{
+    // Total loss across all axes
+    signal
+        .columns()
+        .into_iter()
+        .map(|column| {
+            // Take the sub slice of the 2D object
+            let sub = column.slice(ndarray::s!(range.clone()));
+
+            // Calculate the median
+            let median = median(sub);
+
+            sub.mapv(|signal| (signal - median).abs()).sum()
+        })
+        .sum()
+}
+
+/// L2 loss function.
+#[inline]
+fn l2<T>(signal: ArrayView2<T>, range: Range<usize>) -> T
+where
+    T: Float + Sum,
+{
+    // Total loss across all axes
+    signal
+        .columns()
+        .into_iter()
+        .map(|column| {
+            // Take the sub slice of the 2D object
+            let sub = column.slice(ndarray::s!(range.clone()));
+
+            // Calculate variance
+            let mean = sub.sum() / T::from(sub.len()).unwrap_or_else(T::zero);
+            sub.iter().map(|value| (*value - mean).powi(2)).sum::<T>()
+        })
+        .sum()
+}
+
 /// Fast median calculation.
+#[inline]
 fn median<T>(array: ArrayView1<T>) -> T
 where
     T: Float + TotalOrder + NumCast,
@@ -93,20 +109,18 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     /// Check the L1 cost function.
     #[test]
     fn l1() {
         let array = ndarray::array![[10.0], [30.0], [20.0]];
-        assert_eq!(SegmentCostFunction::L1.loss(array.view(), 0..3), 20.0);
+        assert_eq!(super::l1(array.view(), 0..3), 20.0);
     }
 
     /// Check the L2 cost function.
     #[test]
     fn l2() {
         let array = ndarray::array![[10.0], [30.0], [20.0]];
-        assert_eq!(SegmentCostFunction::L2.loss(array.view(), 0..3), 200.0);
+        assert_eq!(super::l2(array.view(), 0..3), 200.0);
     }
 
     /// Check the median function.

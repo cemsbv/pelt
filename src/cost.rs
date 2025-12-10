@@ -2,6 +2,7 @@
 
 use std::ops::Range;
 
+use medians::Medianf64 as _;
 use ndarray::ArrayView2;
 
 /// Segment model cost function, also known as the loss function.
@@ -28,14 +29,8 @@ impl SegmentCostFunction {
                         let sub = column.slice(ndarray::s!(range.clone()));
 
                         // Calculate the median
-                        let mut sub_vec = sub.to_vec();
-                        sub_vec.sort_by(f64::total_cmp);
-                        let mid = sub_vec.len() / 2;
-                        let median = if sub_vec.len() % 2 == 0 {
-                            sub_vec[mid - 1].midpoint(sub_vec[mid])
-                        } else {
-                            sub_vec[mid]
-                        };
+                        let sub_vec = sub.to_vec();
+                        let median = sub_vec.medf_unchecked();
 
                         sub.mapv(|signal| (signal - median).abs()).sum()
                     })

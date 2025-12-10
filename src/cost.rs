@@ -1,8 +1,9 @@
 //! Cost functions.
 
-use std::ops::Range;
+use std::{iter::Sum, ops::Range};
 
 use ndarray::{ArrayView1, ArrayView2};
+use num_traits::{Float, NumCast, float::TotalOrder};
 
 /// Segment model cost function, also known as the loss function.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -16,7 +17,10 @@ pub enum SegmentCostFunction {
 
 impl SegmentCostFunction {
     /// Calculate the loss.
-    pub(crate) fn loss(self, signal: ArrayView2<f64>, range: Range<usize>) -> f64 {
+    pub(crate) fn loss<T>(self, signal: ArrayView2<T>, range: Range<usize>) -> T
+    where
+        T: Float + TotalOrder + NumCast + Sum,
+    {
         match self {
             Self::L1 => {
                 // Total loss across all axes
@@ -44,8 +48,8 @@ impl SegmentCostFunction {
                         let sub = column.slice(ndarray::s!(range.clone()));
 
                         // Calculate variance
-                        let mean = sub.sum() / sub.len() as f64;
-                        sub.iter().map(|value| (value - mean).powi(2)).sum::<f64>()
+                        let mean = sub.sum() / T::from(sub.len()).unwrap_or_else(T::zero);
+                        sub.iter().map(|value| (*value - mean).powi(2)).sum::<T>()
                     })
                     .sum()
             }
@@ -54,14 +58,18 @@ impl SegmentCostFunction {
 }
 
 /// Fast median calculation.
-fn median(array: ArrayView1<f64>) -> f64 {
+fn median<T>(array: ArrayView1<T>) -> T
+where
+    T: Float + TotalOrder + NumCast,
+{
     let len = array.len();
 
     // Check the easy cases
     match len {
-        0 => return 0.0,
+        0 => return T::zero(),
         1 => return array[0],
-        2 => return array[0].midpoint(array[1]),
+        // Midpoint is not available for num_traits unfortunately
+        2 => return (array[0] + array[1]) / T::from(2.0).unwrap_or_else(T::zero),
         _ => (),
     }
 
@@ -70,13 +78,14 @@ fn median(array: ArrayView1<f64>) -> f64 {
     // Handle the case of even and odd arrays
     if len.is_multiple_of(2) {
         // Take the two middle values
-        let (_, left, rest) = array.select_nth_unstable_by(len / 2 - 1, f64::total_cmp);
-        let (_, right, _) = rest.select_nth_unstable_by(0, f64::total_cmp);
+        let (_, left, rest) = array.select_nth_unstable_by(len / 2 - 1, T::total_cmp);
+        let (_, right, _) = rest.select_nth_unstable_by(0, T::total_cmp);
 
-        left.midpoint(*right)
+        // Midpoint is not available for num_traits unfortunately
+        (*left + *right) / T::from(2.0).unwrap_or_else(T::zero)
     } else {
         // Take the single midpoint value
-        let (_, mid, _) = array.select_nth_unstable_by(len / 2, f64::total_cmp);
+        let (_, mid, _) = array.select_nth_unstable_by(len / 2, T::total_cmp);
 
         *mid
     }

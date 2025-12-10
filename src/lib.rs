@@ -3,12 +3,13 @@
 mod cost;
 mod error;
 
-use std::ops::Range;
+use std::{iter::Sum, ops::Range};
 
 use ahash::AHashMap;
 pub use cost::SegmentCostFunction;
 pub use error::Error;
 use ndarray::{ArrayView2, AsArray, Ix2};
+use num_traits::{Float, NumCast, float::TotalOrder};
 
 /// PELT algorithm.
 ///
@@ -71,22 +72,28 @@ impl Pelt {
     ///
     /// - When the input is invalid.
     /// - When anything went wrong during calculation.
-    pub fn predict<'a>(
+    pub fn predict<'a, T>(
         &self,
-        signal: impl AsArray<'a, f64, Ix2>,
-        penalty: f64,
-    ) -> Result<Vec<usize>, Error> {
+        signal: impl AsArray<'a, T, Ix2>,
+        penalty: T,
+    ) -> Result<Vec<usize>, Error>
+    where
+        T: Float + TotalOrder + NumCast + Sum + 'a,
+    {
         let signal_view = signal.into();
 
         self.predict_impl(signal_view, penalty)
     }
 
     /// [`Self::predict`] implementation outside of generic to avoid code duplication.
-    fn predict_impl(&self, signal: ArrayView2<f64>, penalty: f64) -> Result<Vec<usize>, Error> {
+    fn predict_impl<T>(&self, signal: ArrayView2<T>, penalty: T) -> Result<Vec<usize>, Error>
+    where
+        T: Float + TotalOrder + NumCast + Sum,
+    {
         // `partitions[t]` stores the optimal partition of `signal[0..t]`
-        let mut partitions: AHashMap<usize, AHashMap<Range<usize>, f64>> = AHashMap::new();
+        let mut partitions: AHashMap<usize, AHashMap<Range<usize>, T>> = AHashMap::new();
         let mut first_partition = AHashMap::new();
-        first_partition.insert(Range::default(), 0.0);
+        first_partition.insert(Range::default(), T::zero());
         partitions.insert(0, first_partition);
 
         // List of indices we can accept
@@ -127,14 +134,14 @@ impl Pelt {
 
             // Find the optimal partition with the lowest loss
             let mut min_partition = subproblems.first().ok_or(Error::NoSegmentsFound)?;
-            let mut min_val = min_partition.values().sum::<f64>();
+            let mut min_val = min_partition.values().copied().sum::<T>();
             for (index, subproblem) in subproblems
                 .iter()
                 .enumerate()
                 // Skip the first item since that's the min variables
                 .skip(1)
             {
-                let sum = subproblem.values().sum::<f64>();
+                let sum = subproblem.values().copied().sum::<T>();
                 if sum < min_val {
                     min_val = sum;
                     min_partition = &subproblems[index];
@@ -153,7 +160,7 @@ impl Pelt {
                 .zip(subproblems.drain(..))
                 // Keep the admissible parts that follow the loss function
                 .filter_map(|(admissible_start, partition)| {
-                    (partition.values().sum::<f64>() < loss_current_part)
+                    (partition.values().copied().sum::<T>() < loss_current_part)
                         .then_some(admissible_start)
                 })
                 .collect();

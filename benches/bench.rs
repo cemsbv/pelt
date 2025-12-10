@@ -20,7 +20,7 @@ fn small(bencher: Bencher, segment_cost_function: SegmentCostFunction) {
 }
 
 /// Benchmark the large signals file.
-#[divan::bench(args = [SegmentCostFunction::L1, SegmentCostFunction::L2], sample_count = 10)]
+#[divan::bench(args = [SegmentCostFunction::L1, SegmentCostFunction::L2])]
 fn large(bencher: Bencher, segment_cost_function: SegmentCostFunction) {
     bencher
         .with_inputs(|| load_signals_fixture(include_str!("../tests/signals-large.txt")))

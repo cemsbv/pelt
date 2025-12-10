@@ -24,6 +24,14 @@ divan = "0.1.21"
 name = "bench"
 harness = false
 
+# Create optimized small binaries for benchmarks
+[profile.release]
+lto = "fat"
+strip = "symbols"
+opt-level = 3
+codegen-units = 1
+panic = "abort"
+
 # Additional clippy lints, check status at: https://rust-lang.github.io/rust-clippy/master/index.html
 [lints.clippy]
 # Nursery

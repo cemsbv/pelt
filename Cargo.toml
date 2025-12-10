@@ -1,0 +1,25 @@
+[package]
+name = "pelt"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91.0"
+authors = ["Thomas Versteeg <t.versteeg@cemsbv.io>"]
+description = "Changepoint detection with Pruned Exact Linear Time"
+keywords = ["changepoint"]
+categories = ["mathematics"]
+repository = "https://github.com/cemsbv/pelt"
+documentation = "https://docs.rs/pelt/"
+license = "MPL-2.0"
+readme = "README.md"
+
+[dependencies]
+ahash = "0.8.12"
+ndarray = "0.17.1"
+thiserror = "2.0.17"
+
+[dev-dependencies]
+divan = "0.1.21"
+
+[[bench]]
+name = "bench"
+harness = false

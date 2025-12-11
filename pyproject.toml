@@ -1,0 +1,27 @@
+[project]
+name = "pelt"
+version = "0.1.0"
+description = "Changepoint detection with Pruned Exact Linear Time"
+requires-python = ">=3.11"
+readme = "README.md"
+license = { file = "LICENSE" }
+keywords = ["changepoint"]
+authors = [{ name = "Thomas Versteeg", email = "t.versteeg@cemsbv.io" }]
+classifiers = [
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+
+[project.urls]
+repository = "https://github.com/cemsbv/pelt"
+
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+strip = true
+bindings = "pyo3"
+module-name = "pelt"

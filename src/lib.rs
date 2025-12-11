@@ -34,9 +34,9 @@ pub struct Pelt {
 impl Pelt {
     /// Construct a new PELT instance with default values.
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
-            segment_cost_function: SegmentCostFunction::default(),
+            segment_cost_function: SegmentCostFunction::L1,
             jump: 5,
             min_length: 2,
             keep_initial_zero: false,
@@ -86,8 +86,6 @@ impl Pelt {
     }
 
     /// Fit on a data set.
-    ///
-    /// All signals should be equal length.
     ///
     /// # Errors
     ///

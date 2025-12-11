@@ -2,6 +2,8 @@
 
 mod cost;
 mod error;
+#[cfg(feature = "python")]
+mod python;
 
 use std::{iter::Sum, num::NonZero, ops::Range};
 
@@ -17,7 +19,7 @@ use num_traits::{Float, NumCast, float::TotalOrder};
 ///
 /// - `segment_cost_function`: [`SegmentCostFunction::L1`]
 /// - `jump`: `5`
-/// - `min_length`: `2`
+/// - `minimum_segment_length`: `2`
 /// - `keep_initial_zero`: `false`
 #[derive(Debug, Clone, Copy)]
 pub struct Pelt {
@@ -26,7 +28,7 @@ pub struct Pelt {
     /// Subsample, one every `jump` points.
     jump: usize,
     /// Minimum allowable number of data points within a segment.
-    min_length: usize,
+    minimum_segment_length: usize,
     /// Whether to keep the initial `0` value of the output indices.
     keep_initial_zero: bool,
 }
@@ -38,7 +40,7 @@ impl Pelt {
         Self {
             segment_cost_function: SegmentCostFunction::L1,
             jump: 5,
-            min_length: 2,
+            minimum_segment_length: 2,
             keep_initial_zero: false,
         }
     }
@@ -72,7 +74,7 @@ impl Pelt {
         mut self,
         minimum_segment_length: NonZero<usize>,
     ) -> Self {
-        self.min_length = minimum_segment_length.get();
+        self.minimum_segment_length = minimum_segment_length.get();
 
         self
     }
@@ -125,7 +127,7 @@ impl Pelt {
         for breakpoint in self.proposed_indices(signal.nrows()) {
             // Add points from 0 to the current breakpoint as admissible
             let new_admission_point =
-                (breakpoint.saturating_sub(self.min_length) / self.jump) * self.jump;
+                (breakpoint.saturating_sub(self.minimum_segment_length) / self.jump) * self.jump;
             admissible.push(new_admission_point);
 
             // Split admissible into sub problems
@@ -136,7 +138,7 @@ impl Pelt {
                 };
 
                 // Handle invalid case for too short segments
-                if breakpoint.saturating_sub(*admissible_start) < self.min_length {
+                if breakpoint.saturating_sub(*admissible_start) < self.minimum_segment_length {
                     return Err(Error::NotEnoughPoints);
                 }
 
@@ -208,7 +210,7 @@ impl Pelt {
     fn proposed_indices(&self, signal_len: usize) -> impl Iterator<Item = usize> {
         // Skip the minimum length to the next jump
         let start = self
-            .min_length
+            .minimum_segment_length
             // If it's zero nothing will be skipped
             .saturating_sub(1)
             // Also skip to the next jump position

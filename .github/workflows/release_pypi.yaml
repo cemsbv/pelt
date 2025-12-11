@@ -22,7 +22,7 @@ jobs:
         with:
           manylinux: auto
           command: build
-          args: --release --sdist -o dist
+          args: --features python --release --sdist -o dist
       - name: Upload wheels
         uses: actions/upload-artifact@v5
         with:
@@ -41,7 +41,7 @@ jobs:
       - uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --release -o dist
+          args:  --features python --release -o dist
       - name: Upload wheels
         uses: actions/upload-artifact@v5
         with:
@@ -60,7 +60,7 @@ jobs:
       - uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --release -o dist
+          args:  --features python --release -o dist
       - name: Upload wheels
         uses: actions/upload-artifact@v5
         with:

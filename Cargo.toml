@@ -12,11 +12,22 @@ documentation = "https://docs.rs/pelt/"
 license = "MPL-2.0"
 readme = "README.md"
 
+[lib]
+name = "pelt"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+python = ["dep:numpy", "dep:pyo3"]
+
 [dependencies]
 ahash = "0.8.12"
 ndarray = "0.17.1"
 num-traits = "0.2.19"
 thiserror = "2.0.17"
+
+# Behind `python` feature flag
+numpy = { optional = true, version = "0.27.1" }
+pyo3 = { features = ["extension-module"], optional = true, version = "0.27.2" }
 
 [dev-dependencies]
 divan = "0.1.21"

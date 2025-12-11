@@ -15,7 +15,7 @@ jobs:
     name: Formatter check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -42,7 +42,7 @@ jobs:
         toolchain: [stable, nightly]
     steps:
       # Checkout the branch being tested
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       # Install rust stable
       - uses: dtolnay/rust-toolchain@master
@@ -72,7 +72,7 @@ jobs:
         toolchain: [stable, nightly]
     steps:
       # Checkout the branch being tested
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       # Install python with numpy
       - uses: actions/setup-python@v6

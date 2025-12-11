@@ -2,14 +2,16 @@
 
 mod common;
 
+use std::num::NonZero;
+
 use pelt::{Pelt, SegmentCostFunction};
 
 /// Ensure the main algorithm is correct.
 #[test]
 fn pelt_small() {
     let pelt = Pelt::new()
-        .with_jump(5)
-        .with_minimum_segment_length(2)
+        .with_jump(NonZero::new(5).expect("Invalid number"))
+        .with_minimum_segment_length(NonZero::new(2).expect("Invalid number"))
         .with_segment_cost_function(SegmentCostFunction::L1);
 
     // Test prediction
@@ -27,8 +29,8 @@ fn pelt_small() {
 #[test]
 fn pelt_large() {
     let pelt = Pelt::new()
-        .with_jump(5)
-        .with_minimum_segment_length(2)
+        .with_jump(NonZero::new(5).expect("Invalid number"))
+        .with_minimum_segment_length(NonZero::new(2).expect("Invalid number"))
         .with_segment_cost_function(SegmentCostFunction::L1);
 
     // Test prediction

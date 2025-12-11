@@ -3,7 +3,7 @@
 mod cost;
 mod error;
 
-use std::{iter::Sum, ops::Range};
+use std::{iter::Sum, num::NonZero, ops::Range};
 
 use ahash::AHashMap;
 pub use cost::SegmentCostFunction;
@@ -25,7 +25,7 @@ pub struct Pelt {
     segment_cost_function: SegmentCostFunction,
     /// Subsample, one every `jump` points.
     jump: usize,
-    /// Minimum segment length.
+    /// Minimum allowable number of data points within a segment.
     min_length: usize,
     /// Whether to keep the initial `0` value of the output indices.
     keep_initial_zero: bool,
@@ -44,6 +44,8 @@ impl Pelt {
     }
 
     /// Set the segment model, also known as the loss function.
+    ///
+    /// Determines how the cost of each potential segment is calculated.
     #[must_use]
     pub const fn with_segment_cost_function(mut self, model: SegmentCostFunction) -> Self {
         self.segment_cost_function = model;
@@ -51,18 +53,26 @@ impl Pelt {
         self
     }
 
-    /// Set the subsample, one every `jump` points.
+    /// Set the step size when considering previous potential change points.
+    ///
+    /// - If `jump = 1`, a check is done every possible prior change point, guaranteeing an exact solution, finding the true minimum of the objective function.
+    /// - If `jump > 1`, previous change points are considered at intervals of `jump`. This speeds up the computation, but the solution becomes approximate.
     #[must_use]
-    pub const fn with_jump(mut self, jump: usize) -> Self {
-        self.jump = jump;
+    pub const fn with_jump(mut self, jump: NonZero<usize>) -> Self {
+        self.jump = jump.get();
 
         self
     }
 
-    /// Set the minimum segment length.
+    /// Set the minimum allowable number of data points within a segment.
+    ///
+    /// Ensures that segments are not too small.
     #[must_use]
-    pub const fn with_minimum_segment_length(mut self, minimum_segment_length: usize) -> Self {
-        self.min_length = minimum_segment_length;
+    pub const fn with_minimum_segment_length(
+        mut self,
+        minimum_segment_length: NonZero<usize>,
+    ) -> Self {
+        self.min_length = minimum_segment_length.get();
 
         self
     }
@@ -198,15 +208,15 @@ impl Pelt {
 
     /// Calculate the proposed changepoint indices.
     fn proposed_indices(&self, signal_len: usize) -> impl Iterator<Item = usize> {
-        (0..signal_len)
-            // Skip the first minimum length items
-            .skip(
-                self.min_length
-                    // If it's zero nothing will be skipped
-                    .saturating_sub(1)
-                    // Also skip to the next jump position
-                    .next_multiple_of(self.jump),
-            )
+        // Skip the minimum length to the next jump
+        let start = self
+            .min_length
+            // If it's zero nothing will be skipped
+            .saturating_sub(1)
+            // Also skip to the next jump position
+            .next_multiple_of(self.jump);
+
+        (start..signal_len)
             // Take a index every "jump" items
             .step_by(self.jump)
             // Add the last item
@@ -229,8 +239,8 @@ mod tests {
     fn proposed_indices() {
         assert_eq!(
             Pelt::new()
-                .with_jump(5)
-                .with_minimum_segment_length(2)
+                .with_jump(NonZero::new(5).expect("Invalid number"))
+                .with_minimum_segment_length(NonZero::new(2).expect("Invalid number"))
                 .proposed_indices(20)
                 .collect::<Vec<_>>(),
             vec![5, 10, 15, 20]
@@ -238,8 +248,8 @@ mod tests {
 
         assert_eq!(
             Pelt::new()
-                .with_jump(5)
-                .with_minimum_segment_length(8)
+                .with_jump(NonZero::new(5).expect("Invalid number"))
+                .with_minimum_segment_length(NonZero::new(8).expect("Invalid number"))
                 .proposed_indices(20)
                 .collect::<Vec<_>>(),
             vec![10, 15, 20]

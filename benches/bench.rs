@@ -12,8 +12,6 @@ fn small(bencher: Bencher, segment_cost_function: SegmentCostFunction) {
         .bench_local_values(move |array: Array2<f64>| {
             let result = Pelt::new()
                 .with_segment_cost_function(segment_cost_function)
-                .with_jump(5)
-                .with_minimum_segment_length(2)
                 .predict(divan::black_box(array.view()), 10.0);
             divan::black_box_drop(result);
         });
@@ -27,8 +25,6 @@ fn large(bencher: Bencher, segment_cost_function: SegmentCostFunction) {
         .bench_local_values(move |array: Array2<f64>| {
             let result = Pelt::new()
                 .with_segment_cost_function(segment_cost_function)
-                .with_jump(5)
-                .with_minimum_segment_length(2)
                 .predict(divan::black_box(array.view()), 10.0);
             divan::black_box_drop(result);
         });

@@ -50,7 +50,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
 
       # Cache the built dependencies
-      - uses: Swatinem/rust-cache@v2.8.0
+      - uses: Swatinem/rust-cache@v2.8.2
         with:
           save-if: ${{ github.event_name == 'push' }}
 
@@ -84,7 +84,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
 
       # Cache the built dependencies
-      - uses: Swatinem/rust-cache@v2.8.0
+      - uses: Swatinem/rust-cache@v2.8.2
         with:
           save-if: ${{ github.event_name == 'push' }}
 

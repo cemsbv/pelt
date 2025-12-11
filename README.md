@@ -1,13 +1,13 @@
-[![Crates.io][ci]][cl] ![MPL-2.0][li] [![docs.rs][di]][dl] ![ci][bci] [![pypi][pi]][pl]
+[![Crates.io][ci]][cl] [![pypi][pi]][pl] ![MPL-2.0][li] [![docs.rs][di]][dl] ![ci][bci]
 
 [ci]: https://img.shields.io/crates/v/pelt.svg
 [cl]: https://crates.io/crates/pelt/
+[pi]: https://badge.fury.io/py/pelt.svg
+[pl]: https://pypi.org/project/pelt
 [li]: https://img.shields.io/crates/l/pelt.svg?maxAge=2592000
 [di]: https://docs.rs/pelt/badge.svg
 [dl]: https://docs.rs/pelt/
 [bci]: https://github.com/cemsbv/pelt/workflows/ci/badge.svg
-[pi]: https://badge.fury.io/py/pelt.svg
-[pl]: https://pypi.org/project/pelt
 
 Changepoint detection with Pruned Exact Linear Time. 
 
@@ -56,6 +56,50 @@ python
 >>> signal = np.array([np.sin(np.arange(0, 1000, 10))]).transpose()
 >>> predict(signal, penalty=20)
 ```
+
+## Benchmarks
+
+### Python
+
+Comparison with [ruptures](https://centre-borelli.github.io/ruptures-docs/code-reference/detection/pelt-reference/):
+
+| Benchmark | Min | Max | Mean | Min (+) | Max (+) | Mean (+) |
+| -- | -- | -- | -- | -- | -- | -- |
+| ruptures L1 vs pelt L1 | 0.124 | 0.127 | 0.125 | 18.050 (-145.4x) | 19.298 (-151.9x) | 18.401 (-147.2x) |
+| ruptures L2 vs pelt L2 | 0.099 | 0.099 | 0.099 | 9.317 (-94.2x) | 9.667 (-97.5x) | 9.513 (-96.0x) |
+
+<details>
+
+<summary>Command</summary>
+
+```sh
+richbench benches/
+```
+
+</details>
+
+### Rust
+
+```
+Timer precision: 20 ns
+bench     fastest       | slowest       | median        | mean          | samples | iters
+├─ large                |               |               |               |         |
+|  ├─ L1  99.48 ms      | 133.5 ms      | 107.7 ms      | 109.1 ms      | 100     | 100
+|  ╰─ L2  31.42 ms      | 41.47 ms      | 33.18 ms      | 33.96 ms      | 100     | 100
+╰─ small                |               |               |               |         |
+   ├─ L1  199.8 µs      | 229 µs        | 207.2 µs      | 208 µs        | 100     | 100
+   ╰─ L2  56.6 µs       | 69.11 µs      | 57.96 µs      | 58.29 µs      | 100     | 100
+```
+
+<details>
+
+<summary>Command</summary>
+
+```sh
+cargo bench --profile release
+```
+
+</details>
 
 ## Credits
 

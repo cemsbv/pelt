@@ -24,7 +24,7 @@ jobs:
           command: build
           args: --features python --release --sdist -o dist
       - name: Upload wheels
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: wheels-linux
           path: dist
@@ -43,7 +43,7 @@ jobs:
           command: build
           args:  --features python --release -o dist
       - name: Upload wheels
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: wheels-windows
           path: dist
@@ -62,7 +62,7 @@ jobs:
           command: build
           args:  --features python --release -o dist
       - name: Upload wheels
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: wheels-macos
           path: dist
@@ -83,7 +83,7 @@ jobs:
       # Used to generate artifact attestation
       attestations: write
     steps:
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v3

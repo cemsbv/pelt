@@ -5,14 +5,26 @@ mod error;
 #[cfg(feature = "python")]
 mod python;
 
-use std::num::NonZero;
+use std::{marker::PhantomData, num::NonZero};
 
-use accurate::{sum::Kahan, traits::SumAccumulator as _};
 use ahash::AHashMap;
 pub use cost::SegmentCostFunction;
 pub use error::Error;
 use ndarray::{ArrayView2, AsArray, Ix2};
-use num_traits::{Float, float::TotalOrder};
+use num_traits::{Float, Zero, float::TotalOrder};
+
+/// Kahan summation
+///
+/// Source: [`accurate::sum::Kahan`], slower but more accurate.
+pub type Kahan<T> = accurate::sum::Kahan<T>;
+
+/// Naive floating point summation, very fast but inaccurate.
+///
+/// Source: [`accurate::sum::NaiveSum`].
+pub type Naive<T> = accurate::sum::NaiveSum<T>;
+
+/// Which sum algorithm to use.
+pub use accurate::traits::SumAccumulator as Sum;
 
 /// PELT algorithm.
 ///
@@ -83,26 +95,28 @@ impl Pelt {
     ///
     /// - When the input is invalid.
     /// - When anything went wrong during calculation.
-    pub fn predict<'a, T>(
+    pub fn predict<'a, S, T>(
         &self,
         signal: impl AsArray<'a, T, Ix2>,
         penalty: T,
     ) -> Result<Vec<usize>, Error>
     where
+        S: Sum<T>,
         T: Float + TotalOrder + 'a,
     {
         let signal_view = signal.into();
 
-        self.predict_impl(signal_view, penalty)
+        self.predict_impl::<S, T>(signal_view, penalty)
     }
 
     /// [`Self::predict`] implementation outside of generic to avoid code duplication.
-    fn predict_impl<T>(&self, signal: ArrayView2<T>, penalty: T) -> Result<Vec<usize>, Error>
+    fn predict_impl<S, T>(&self, signal: ArrayView2<T>, penalty: T) -> Result<Vec<usize>, Error>
     where
+        S: Sum<T>,
         T: Float + TotalOrder,
     {
         // `partitions[t]` stores the optimal partition of `signal[0..t]`
-        let mut partitions: AHashMap<usize, Partition<T>> = AHashMap::new();
+        let mut partitions: AHashMap<usize, Partition<S, T>> = AHashMap::new();
         partitions.insert(0, Partition::default());
 
         // List of indices we can accept
@@ -209,41 +223,45 @@ impl Default for Pelt {
 
 /// A single partition.
 #[derive(Clone)]
-struct Partition<T> {
+struct Partition<S, T> {
     /// End of ranges it applies to.
     ranges: Vec<usize>,
     /// Sum of all loss and penalty values.
-    loss_and_penalty_sum: Kahan<T>,
+    loss_and_penalty_sum: S,
+    /// Ignore `T`.
+    _phantom: PhantomData<T>,
 }
 
-impl<T> Partition<T>
+impl<S, T> Partition<S, T>
 where
-    T: Float,
+    S: Sum<T>,
 {
     /// Push a new value.
     #[inline]
-    pub fn push(&mut self, range: usize, loss: Kahan<T>, penalty: T) {
+    pub fn push(&mut self, range: usize, loss: S, penalty: T) {
         self.ranges.push(range);
 
-        self.loss_and_penalty_sum = self.loss_and_penalty_sum + loss + penalty;
+        self.loss_and_penalty_sum = self.loss_and_penalty_sum.clone() + loss.sum() + penalty;
     }
 
     /// Get the sum of the loss and penalty.
     #[inline]
     pub fn loss_and_penalty_sum(&self) -> T {
-        self.loss_and_penalty_sum.sum()
+        self.loss_and_penalty_sum.clone().sum()
     }
 }
 
-impl<T> Default for Partition<T>
+impl<S, T> Default for Partition<S, T>
 where
-    T: Float,
+    S: Sum<T>,
+    T: Zero,
 {
     #[inline]
     fn default() -> Self {
         Self {
             ranges: Vec::with_capacity(8),
-            loss_and_penalty_sum: Kahan::zero(),
+            loss_and_penalty_sum: S::zero(),
+            _phantom: PhantomData,
         }
     }
 }

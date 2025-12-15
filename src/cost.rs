@@ -2,7 +2,7 @@
 
 use std::ops::Range;
 
-use accurate::{sum::Kahan, traits::SumAccumulator as _};
+use accurate::traits::{SumAccumulator, SumWithAccumulator};
 use ndarray::{ArrayView1, ArrayView2};
 use num_traits::{Float, float::TotalOrder};
 
@@ -19,8 +19,9 @@ pub enum SegmentCostFunction {
 impl SegmentCostFunction {
     /// Calculate the loss.
     #[inline]
-    pub(crate) fn loss<T>(self, signal: ArrayView2<T>, range: Range<usize>) -> Kahan<T>
+    pub(crate) fn loss<S, T>(self, signal: ArrayView2<T>, range: Range<usize>) -> S
     where
+        S: SumAccumulator<T>,
         T: Float + TotalOrder,
     {
         match self {
@@ -32,12 +33,13 @@ impl SegmentCostFunction {
 
 /// L1 loss function.
 #[inline]
-fn l1<T>(signal: ArrayView2<T>, range: Range<usize>) -> Kahan<T>
+fn l1<S, T>(signal: ArrayView2<T>, range: Range<usize>) -> S
 where
+    S: SumAccumulator<T>,
     T: Float + TotalOrder,
 {
     // Total loss across all axes
-    let mut total = Kahan::zero();
+    let mut total = S::zero();
 
     signal.columns().into_iter().for_each(|column| {
         // Take the sub slice of the 2D object
@@ -55,19 +57,23 @@ where
 
 /// L2 loss function.
 #[inline]
-fn l2<T>(signal: ArrayView2<T>, range: Range<usize>) -> Kahan<T>
+fn l2<S, T>(signal: ArrayView2<T>, range: Range<usize>) -> S
 where
+    S: SumAccumulator<T>,
     T: Float,
 {
     // Total loss across all axes
-    let mut total = Kahan::zero();
+    let mut total = S::zero();
+
+    // How many rows there are
+    let rows_length = T::from(signal.nrows()).unwrap_or_else(T::zero);
 
     signal.columns().into_iter().for_each(|column| {
         // Take the sub slice of the 2D object
         let sub = column.slice(ndarray::s!(range.clone()));
 
         // Calculate variance
-        let mean = sub.sum() / T::from(sub.len()).unwrap_or_else(T::zero);
+        let mean = sub.iter().copied().sum_with_accumulator::<S>() / rows_length;
 
         sub.iter()
             .for_each(|value| total += (*value - mean).powi(2));
@@ -113,20 +119,20 @@ where
 
 #[cfg(test)]
 mod tests {
-    use accurate::traits::SumAccumulator as _;
+    use accurate::{sum::Kahan, traits::SumAccumulator as _};
 
     /// Check the L1 cost function.
     #[test]
     fn l1() {
         let array = ndarray::array![[10.0], [30.0], [20.0]];
-        assert_eq!(super::l1(array.view(), 0..3).sum(), 20.0);
+        assert_eq!(super::l1::<Kahan<f64>, _>(array.view(), 0..3).sum(), 20.0);
     }
 
     /// Check the L2 cost function.
     #[test]
     fn l2() {
         let array = ndarray::array![[10.0], [30.0], [20.0]];
-        assert_eq!(super::l2(array.view(), 0..3).sum(), 200.0);
+        assert_eq!(super::l2::<Kahan<f64>, _>(array.view(), 0..3).sum(), 200.0);
     }
 
     /// Check the median function.

@@ -37,6 +37,12 @@ divan = "0.1.21"
 name = "bench"
 harness = false
 
+# Make samply work
+[profile.profiling]
+inherits = "release"
+debug = true
+strip = false
+
 # Create optimized small binaries for benchmarks
 [profile.release]
 lto = "fat"

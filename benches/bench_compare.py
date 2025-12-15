@@ -9,7 +9,7 @@ signal_2d = np.array([signal]).transpose()
 
 def pelt_l1():
     """ L1 on pelt"""
-    predict(signal_2d, penalty=10, segment_cost_function="l1")
+    predict(signal_2d, penalty=10, segment_cost_function="l1", sum_method="naive")
 
 def ruptures_l1():
     """ L1 on ruptures"""
@@ -18,7 +18,7 @@ def ruptures_l1():
 
 def pelt_l2():
     """ L2 on pelt"""
-    predict(signal_2d, penalty=10, segment_cost_function="l2")
+    predict(signal_2d, penalty=10, segment_cost_function="l2", sum_method="naive")
 
 def ruptures_l2():
     """ L2 on ruptures"""

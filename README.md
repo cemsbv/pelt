@@ -24,7 +24,7 @@ predict(signal, penalty=20, segment_cost_function="l1", jump=10, minimum_segment
 ### Rust
 
 ```rust
-use pelt::{Pelt, SegmentCostFunction};
+use pelt::{Pelt, SegmentCostFunction, Kahan};
 
 // Setup the structure for calculating changepoints
 let pelt = Pelt::new()
@@ -34,7 +34,8 @@ let pelt = Pelt::new()
 
 // Do the calculation on a data set
 let penalty = 10.0;
-let result = pelt.predict(&signal[..], penalty)?;
+// Use more accurate Kahan summation for all math
+let result = pelt.predict::<Kahan<_>, _>(&signal[..], penalty)?;
 ```
 
 ## Run locally
@@ -59,14 +60,16 @@ python
 
 ## Benchmarks
 
+Like all benchmarks, take these with a grain of salt.
+
 ### Python
 
 Comparison with [ruptures](https://centre-borelli.github.io/ruptures-docs/code-reference/detection/pelt-reference/):
 
-| Benchmark | Min | Max | Mean | Min (+) | Max (+) | Mean (+) |
-| -- | -- | -- | -- | -- | -- | -- |
-| ruptures L1 vs pelt L1 | 0.124 | 0.127 | 0.125 | 18.050 (-145.4x) | 19.298 (-151.9x) | 18.401 (-147.2x) |
-| ruptures L2 vs pelt L2 | 0.099 | 0.099 | 0.099 | 9.317 (-94.2x) | 9.667 (-97.5x) | 9.513 (-96.0x) |
+| Benchmark | Min (+) | Max (+) | Mean (+) |
+| -- | -- | -- | -- |
+| ruptures L1 vs pelt L1 | -102.1x |  -101.4x | -101.6x |
+| ruptures L2 vs pelt L2 | -1578.8x | -1587.7x | -1591.1x |
 
 <details>
 
@@ -82,13 +85,21 @@ richbench benches/
 
 ```
 Timer precision: 20 ns
-bench     fastest       | slowest       | median        | mean          | samples | iters
-├─ large                |               |               |               |         |
-|  ├─ L1  99.48 ms      | 133.5 ms      | 107.7 ms      | 109.1 ms      | 100     | 100
-|  ╰─ L2  31.42 ms      | 41.47 ms      | 33.18 ms      | 33.96 ms      | 100     | 100
-╰─ small                |               |               |               |         |
-   ├─ L1  199.8 µs      | 229 µs        | 207.2 µs      | 208 µs        | 100     | 100
-   ╰─ L2  56.6 µs       | 69.11 µs      | 57.96 µs      | 58.29 µs      | 100     | 100
+bench                fastest       │ slowest       │ median        │ mean          │ samples │ iters
+├─ large                           │               │               │               │         │
+│  ├─ Kahan<f64>                   │               │               │               │         │
+│  │  ├─ L1          161.2 ms      │ 202.3 ms      │ 162.3 ms      │ 165.3 ms      │ 100     │ 100
+│  │  ╰─ L2          4.832 ms      │ 4.923 ms      │ 4.845 ms      │ 4.852 ms      │ 100     │ 100
+│  ╰─ Naive<f64>                   │               │               │               │         │
+│     ├─ L1          126.6 ms      │ 159.2 ms      │ 127.7 ms      │ 131.5 ms      │ 100     │ 100
+│     ╰─ L2          1.436 ms      │ 1.591 ms      │ 1.45 ms       │ 1.455 ms      │ 100     │ 100
+╰─ small                           │               │               │               │         │
+   ├─ Kahan<f64>                   │               │               │               │         │
+   │  ├─ L1          247.4 µs      │ 295.3 µs      │ 252.7 µs      │ 254 µs        │ 100     │ 100
+   │  ╰─ L2          65.22 µs      │ 73.42 µs      │ 66.02 µs      │ 66.31 µs      │ 100     │ 100
+   ╰─ Naive<f64>                   │               │               │               │         │
+      ├─ L1          189.7 µs      │ 254.7 µs      │ 196.3 µs      │ 197.5 µs      │ 100     │ 100
+      ╰─ L2          27.19 µs      │ 38.14 µs      │ 28.05 µs      │ 28.45 µs      │ 100     │ 100
 ```
 
 <details>
@@ -97,6 +108,20 @@ bench     fastest       | slowest       | median        | mean          | sample
 
 ```sh
 cargo bench --profile release
+```
+
+</details>
+
+## Profile
+
+
+<details>
+
+<summary>Command</summary>
+
+```sh
+cargo build --example simple --profile profiling \
+ && samply record target/profiling/examples/simple tests/signals-large.txt
 ```
 
 </details>

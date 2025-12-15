@@ -2,30 +2,30 @@
 
 use divan::Bencher;
 use ndarray::Array2;
-use pelt::{Pelt, SegmentCostFunction};
+use pelt::{Kahan, Naive, Pelt, SegmentCostFunction, Sum};
 
 /// Benchmark the small signals file.
-#[divan::bench(args = [SegmentCostFunction::L1, SegmentCostFunction::L2])]
-fn small(bencher: Bencher, segment_cost_function: SegmentCostFunction) {
+#[divan::bench(args = [SegmentCostFunction::L1, SegmentCostFunction::L2], types = [Kahan<f64>, Naive<f64>])]
+fn small<S: Sum<f64>>(bencher: Bencher, segment_cost_function: SegmentCostFunction) {
     bencher
         .with_inputs(|| load_signals_fixture(include_str!("../tests/signals.txt")))
         .bench_local_values(move |array: Array2<f64>| {
             let result = Pelt::new()
                 .with_segment_cost_function(segment_cost_function)
-                .predict(divan::black_box(array.view()), 10.0);
+                .predict::<S, _>(divan::black_box(array.view()), 10.0);
             divan::black_box_drop(result);
         });
 }
 
 /// Benchmark the large signals file.
-#[divan::bench(args = [SegmentCostFunction::L1, SegmentCostFunction::L2])]
-fn large(bencher: Bencher, segment_cost_function: SegmentCostFunction) {
+#[divan::bench(args = [SegmentCostFunction::L1, SegmentCostFunction::L2], types = [Kahan<f64>, Naive<f64>])]
+fn large<S: Sum<f64>>(bencher: Bencher, segment_cost_function: SegmentCostFunction) {
     bencher
         .with_inputs(|| load_signals_fixture(include_str!("../tests/signals-large.txt")))
         .bench_local_values(move |array: Array2<f64>| {
             let result = Pelt::new()
                 .with_segment_cost_function(segment_cost_function)
-                .predict(divan::black_box(array.view()), 10.0);
+                .predict::<S, _>(divan::black_box(array.view()), 10.0);
             divan::black_box_drop(result);
         });
 }

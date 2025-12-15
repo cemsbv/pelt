@@ -4,7 +4,7 @@ mod common;
 
 use std::num::NonZero;
 
-use pelt::{Pelt, SegmentCostFunction};
+use pelt::{Kahan, Pelt, SegmentCostFunction};
 
 /// Ensure the main algorithm is correct.
 #[test]
@@ -16,7 +16,7 @@ fn pelt_small() {
 
     // Test prediction
     assert_eq!(
-        pelt.predict(
+        pelt.predict::<Kahan<_>, _>(
             common::load_signals_fixture(include_str!("../tests/signals.txt")).view(),
             10.0
         )
@@ -35,7 +35,7 @@ fn pelt_large() {
 
     // Test prediction
     assert_eq!(
-        pelt.predict(
+        pelt.predict::<Kahan<_>, _>(
             common::load_signals_fixture(include_str!("../tests/signals-large.txt")).view(),
             10.0
         )

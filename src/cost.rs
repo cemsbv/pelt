@@ -66,7 +66,7 @@ where
     let mut total = S::zero();
 
     // How many rows there are
-    let rows_length = T::from(signal.nrows()).unwrap_or_else(T::zero);
+    let rows_length = T::from(range.clone().count()).unwrap_or_else(T::zero);
 
     signal.columns().into_iter().for_each(|column| {
         // Take the sub slice of the 2D object

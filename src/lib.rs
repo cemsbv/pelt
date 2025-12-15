@@ -5,14 +5,14 @@ mod error;
 #[cfg(feature = "python")]
 mod python;
 
-use std::{iter::Sum, num::NonZero, ops::Range};
+use std::num::NonZero;
 
-use accurate::{sum::Kahan, traits::SumWithAccumulator as _};
+use accurate::{sum::Kahan, traits::SumAccumulator as _};
 use ahash::AHashMap;
 pub use cost::SegmentCostFunction;
 pub use error::Error;
 use ndarray::{ArrayView2, AsArray, Ix2};
-use num_traits::{Float, NumCast, float::TotalOrder};
+use num_traits::{Float, float::TotalOrder};
 
 /// PELT algorithm.
 ///
@@ -30,8 +30,6 @@ pub struct Pelt {
     jump: usize,
     /// Minimum allowable number of data points within a segment.
     minimum_segment_length: usize,
-    /// Whether to keep the initial `0` value of the output indices.
-    keep_initial_zero: bool,
 }
 
 impl Pelt {
@@ -42,7 +40,6 @@ impl Pelt {
             segment_cost_function: SegmentCostFunction::L1,
             jump: 5,
             minimum_segment_length: 2,
-            keep_initial_zero: false,
         }
     }
 
@@ -80,14 +77,6 @@ impl Pelt {
         self
     }
 
-    /// Set whether to keep the initial zero value of the output indices.
-    #[must_use]
-    pub const fn with_keep_initial_zero(mut self, keep_initial_zero: bool) -> Self {
-        self.keep_initial_zero = keep_initial_zero;
-
-        self
-    }
-
     /// Fit on a data set.
     ///
     /// # Errors
@@ -100,7 +89,7 @@ impl Pelt {
         penalty: T,
     ) -> Result<Vec<usize>, Error>
     where
-        T: Float + TotalOrder + NumCast + Sum + 'a,
+        T: Float + TotalOrder + 'a,
     {
         let signal_view = signal.into();
 
@@ -110,13 +99,11 @@ impl Pelt {
     /// [`Self::predict`] implementation outside of generic to avoid code duplication.
     fn predict_impl<T>(&self, signal: ArrayView2<T>, penalty: T) -> Result<Vec<usize>, Error>
     where
-        T: Float + TotalOrder + NumCast + Sum,
+        T: Float + TotalOrder,
     {
         // `partitions[t]` stores the optimal partition of `signal[0..t]`
-        let mut partitions: AHashMap<usize, AHashMap<Range<usize>, T>> = AHashMap::new();
-        let mut first_partition = AHashMap::new();
-        first_partition.insert(Range::default(), T::zero());
-        partitions.insert(0, first_partition);
+        let mut partitions: AHashMap<usize, Partition<T>> = AHashMap::new();
+        partitions.insert(0, Partition::default());
 
         // List of indices we can accept
         let mut admissible = Vec::with_capacity(self.jump);
@@ -133,9 +120,9 @@ impl Pelt {
 
             // Split admissible into sub problems
             for admissible_start in &admissible {
-                // Skip breakpoints without partitions
+                // Handle case where there's no partitions yet, shouldn't happen
                 let Some(partition) = partitions.get(admissible_start) else {
-                    continue;
+                    return Err(Error::NotEnoughPoints);
                 };
 
                 // Handle invalid case for too short segments
@@ -143,43 +130,31 @@ impl Pelt {
                     return Err(Error::NotEnoughPoints);
                 }
 
-                let range = *admissible_start..breakpoint;
-
                 // Calculate loss function for the admissible range
-                let loss = self.segment_cost_function.loss(signal, range.clone());
+                let loss = self
+                    .segment_cost_function
+                    .loss(signal, *admissible_start..breakpoint);
 
                 // Update with the right partition
                 let mut new_partition = partition.clone();
-                new_partition.insert(range, loss + penalty);
+                new_partition.push(breakpoint, loss, penalty);
                 subproblems.push(new_partition);
             }
 
             // Find the optimal partition with the lowest loss
-            let mut min_partition = subproblems.first().ok_or(Error::NoSegmentsFound)?;
-            let mut min_val = min_partition
-                .values()
-                .copied()
-                .sum_with_accumulator::<Kahan<T>>();
-            for (index, subproblem) in subproblems
+            let min_subproblem = subproblems
                 .iter()
-                .enumerate()
-                // Skip the first item since that's the min variables
-                .skip(1)
-            {
-                let sum = subproblem
-                    .values()
-                    .copied()
-                    .sum_with_accumulator::<Kahan<T>>();
-                if sum < min_val {
-                    min_val = sum;
-                    min_partition = &subproblems[index];
-                }
-            }
+                .min_by(|left, right| {
+                    left.loss_and_penalty_sum()
+                        .total_cmp(&right.loss_and_penalty_sum())
+                })
+                .ok_or(Error::NotEnoughPoints)?;
+
             // Assign optimal partition to the map
-            partitions.insert(breakpoint, min_partition.clone());
+            partitions.insert(breakpoint, min_subproblem.clone());
 
             // Threshold loss to filter each partition
-            let loss_current_part = min_val + penalty;
+            let loss_current_part = min_subproblem.loss_and_penalty_sum() + penalty;
 
             // Filter the admissible array
             admissible = admissible
@@ -187,12 +162,8 @@ impl Pelt {
                 // Clear the subproblems array
                 .zip(subproblems.drain(..))
                 // Keep the admissible parts that follow the loss function
-                .filter_map(|(admissible_start, partition)| {
-                    (partition
-                        .values()
-                        .copied()
-                        .sum_with_accumulator::<Kahan<T>>()
-                        < loss_current_part)
+                .filter_map(|(admissible_start, subproblem)| {
+                    (subproblem.loss_and_penalty_sum() < loss_current_part)
                         .then_some(admissible_start)
                 })
                 .collect();
@@ -200,21 +171,16 @@ impl Pelt {
 
         // Get the best partition
         let best_part = partitions
-            .get(&signal.nrows())
+            .remove(&signal.nrows())
             .ok_or(Error::NoSegmentsFound)?;
 
         // Extract the indices
-        let mut indices = best_part.keys().map(|range| range.end).collect::<Vec<_>>();
+        let mut indices = best_part.ranges;
 
         // Sort indices
         indices.sort_unstable();
 
-        if !self.keep_initial_zero {
-            // Remove the zero value
-            indices.remove(0);
-        }
-
-        Ok(indices)
+        Ok(indices.to_vec())
     }
 
     /// Calculate the proposed changepoint indices.
@@ -238,6 +204,47 @@ impl Pelt {
 impl Default for Pelt {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// A single partition.
+#[derive(Clone)]
+struct Partition<T> {
+    /// End of ranges it applies to.
+    ranges: Vec<usize>,
+    /// Sum of all loss and penalty values.
+    loss_and_penalty_sum: Kahan<T>,
+}
+
+impl<T> Partition<T>
+where
+    T: Float,
+{
+    /// Push a new value.
+    #[inline]
+    pub fn push(&mut self, range: usize, loss: Kahan<T>, penalty: T) {
+        self.ranges.push(range);
+
+        self.loss_and_penalty_sum = self.loss_and_penalty_sum + loss + penalty;
+    }
+
+    /// Get the sum of the loss and penalty.
+    #[inline]
+    pub fn loss_and_penalty_sum(&self) -> T {
+        self.loss_and_penalty_sum.sum()
+    }
+}
+
+impl<T> Default for Partition<T>
+where
+    T: Float,
+{
+    #[inline]
+    fn default() -> Self {
+        Self {
+            ranges: Vec::with_capacity(8),
+            loss_and_penalty_sum: Kahan::zero(),
+        }
     }
 }
 

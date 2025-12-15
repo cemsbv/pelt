@@ -21,7 +21,7 @@ mod pelt {
     use crate::{Pelt, SegmentCostFunction};
 
     /// Calculate the changepoints.
-    #[pyfunction(signature = (signal, penalty, segment_cost_function = "l1", jump = 10, minimum_segment_length = 2, keep_initial_zero = false))]
+    #[pyfunction(signature = (signal, penalty, segment_cost_function = "l1", jump = 10, minimum_segment_length = 2))]
     fn predict<'py>(
         py: Python<'py>,
         signal: PyArrayLike2<'py, f64>,
@@ -29,7 +29,6 @@ mod pelt {
         segment_cost_function: &str,
         jump: usize,
         minimum_segment_length: usize,
-        keep_initial_zero: bool,
     ) -> PyResult<Bound<'py, PyArray1<usize>>> {
         // Map input parameter to enum
         let segment_cost_function = match segment_cost_function {
@@ -53,7 +52,6 @@ mod pelt {
             .with_segment_cost_function(segment_cost_function)
             .with_jump(jump)
             .with_minimum_segment_length(minimum_segment_length)
-            .with_keep_initial_zero(keep_initial_zero)
             .predict(signal.as_array(), penalty)?;
 
         Ok(PyArray1::from_vec(py, indices))

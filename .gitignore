@@ -3,3 +3,7 @@
 debug
 target
 *.lock
+perf.data
+flamegraph.svg
+__pycache__
+*.gz

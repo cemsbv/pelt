@@ -1,10 +1,10 @@
 //! Cost functions.
 
-use std::{iter::Sum, ops::Range};
+use std::ops::Range;
 
 use accurate::{sum::Kahan, traits::SumAccumulator as _};
 use ndarray::{ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast, float::TotalOrder};
+use num_traits::{Float, float::TotalOrder};
 
 /// Segment model cost function, also known as the loss function.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -19,9 +19,9 @@ pub enum SegmentCostFunction {
 impl SegmentCostFunction {
     /// Calculate the loss.
     #[inline]
-    pub(crate) fn loss<T>(self, signal: ArrayView2<T>, range: Range<usize>) -> T
+    pub(crate) fn loss<T>(self, signal: ArrayView2<T>, range: Range<usize>) -> Kahan<T>
     where
-        T: Float + TotalOrder + NumCast + Sum,
+        T: Float + TotalOrder,
     {
         match self {
             Self::L1 => l1(signal, range),
@@ -32,9 +32,9 @@ impl SegmentCostFunction {
 
 /// L1 loss function.
 #[inline]
-fn l1<T>(signal: ArrayView2<T>, range: Range<usize>) -> T
+fn l1<T>(signal: ArrayView2<T>, range: Range<usize>) -> Kahan<T>
 where
-    T: Float + TotalOrder + NumCast + Sum,
+    T: Float + TotalOrder,
 {
     // Total loss across all axes
     let mut total = Kahan::zero();
@@ -50,14 +50,14 @@ where
             .for_each(|signal| total += (*signal - median).abs());
     });
 
-    total.sum()
+    total
 }
 
 /// L2 loss function.
 #[inline]
-fn l2<T>(signal: ArrayView2<T>, range: Range<usize>) -> T
+fn l2<T>(signal: ArrayView2<T>, range: Range<usize>) -> Kahan<T>
 where
-    T: Float + Sum,
+    T: Float,
 {
     // Total loss across all axes
     let mut total = Kahan::zero();
@@ -73,14 +73,14 @@ where
             .for_each(|value| total += (*value - mean).powi(2));
     });
 
-    total.sum()
+    total
 }
 
 /// Fast median calculation.
 #[inline]
 fn median<T>(array: ArrayView1<T>) -> T
 where
-    T: Float + TotalOrder + NumCast,
+    T: Float + TotalOrder,
 {
     let len = array.len();
 
@@ -113,18 +113,20 @@ where
 
 #[cfg(test)]
 mod tests {
+    use accurate::traits::SumAccumulator as _;
+
     /// Check the L1 cost function.
     #[test]
     fn l1() {
         let array = ndarray::array![[10.0], [30.0], [20.0]];
-        assert_eq!(super::l1(array.view(), 0..3), 20.0);
+        assert_eq!(super::l1(array.view(), 0..3).sum(), 20.0);
     }
 
     /// Check the L2 cost function.
     #[test]
     fn l2() {
         let array = ndarray::array![[10.0], [30.0], [20.0]];
-        assert_eq!(super::l2(array.view(), 0..3), 200.0);
+        assert_eq!(super::l2(array.view(), 0..3).sum(), 200.0);
     }
 
     /// Check the median function.

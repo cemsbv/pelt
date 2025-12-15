@@ -7,6 +7,7 @@ mod python;
 
 use std::{iter::Sum, num::NonZero, ops::Range};
 
+use accurate::{sum::Kahan, traits::SumWithAccumulator as _};
 use ahash::AHashMap;
 pub use cost::SegmentCostFunction;
 pub use error::Error;
@@ -155,14 +156,20 @@ impl Pelt {
 
             // Find the optimal partition with the lowest loss
             let mut min_partition = subproblems.first().ok_or(Error::NoSegmentsFound)?;
-            let mut min_val = min_partition.values().copied().sum::<T>();
+            let mut min_val = min_partition
+                .values()
+                .copied()
+                .sum_with_accumulator::<Kahan<T>>();
             for (index, subproblem) in subproblems
                 .iter()
                 .enumerate()
                 // Skip the first item since that's the min variables
                 .skip(1)
             {
-                let sum = subproblem.values().copied().sum::<T>();
+                let sum = subproblem
+                    .values()
+                    .copied()
+                    .sum_with_accumulator::<Kahan<T>>();
                 if sum < min_val {
                     min_val = sum;
                     min_partition = &subproblems[index];
@@ -181,7 +188,11 @@ impl Pelt {
                 .zip(subproblems.drain(..))
                 // Keep the admissible parts that follow the loss function
                 .filter_map(|(admissible_start, partition)| {
-                    (partition.values().copied().sum::<T>() < loss_current_part)
+                    (partition
+                        .values()
+                        .copied()
+                        .sum_with_accumulator::<Kahan<T>>()
+                        < loss_current_part)
                         .then_some(admissible_start)
                 })
                 .collect();

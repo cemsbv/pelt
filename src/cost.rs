@@ -2,6 +2,7 @@
 
 use std::{iter::Sum, ops::Range};
 
+use accurate::{sum::Kahan, traits::SumAccumulator as _};
 use ndarray::{ArrayView1, ArrayView2};
 use num_traits::{Float, NumCast, float::TotalOrder};
 
@@ -36,19 +37,20 @@ where
     T: Float + TotalOrder + NumCast + Sum,
 {
     // Total loss across all axes
-    signal
-        .columns()
-        .into_iter()
-        .map(|column| {
-            // Take the sub slice of the 2D object
-            let sub = column.slice(ndarray::s!(range.clone()));
+    let mut total = Kahan::zero();
 
-            // Calculate the median
-            let median = median(sub);
+    signal.columns().into_iter().for_each(|column| {
+        // Take the sub slice of the 2D object
+        let sub = column.slice(ndarray::s!(range.clone()));
 
-            sub.mapv(|signal| (signal - median).abs()).sum()
-        })
-        .sum()
+        // Calculate the median
+        let median = median(sub);
+
+        sub.iter()
+            .for_each(|signal| total += (*signal - median).abs());
+    });
+
+    total.sum()
 }
 
 /// L2 loss function.
@@ -58,18 +60,20 @@ where
     T: Float + Sum,
 {
     // Total loss across all axes
-    signal
-        .columns()
-        .into_iter()
-        .map(|column| {
-            // Take the sub slice of the 2D object
-            let sub = column.slice(ndarray::s!(range.clone()));
+    let mut total = Kahan::zero();
 
-            // Calculate variance
-            let mean = sub.sum() / T::from(sub.len()).unwrap_or_else(T::zero);
-            sub.iter().map(|value| (*value - mean).powi(2)).sum::<T>()
-        })
-        .sum()
+    signal.columns().into_iter().for_each(|column| {
+        // Take the sub slice of the 2D object
+        let sub = column.slice(ndarray::s!(range.clone()));
+
+        // Calculate variance
+        let mean = sub.sum() / T::from(sub.len()).unwrap_or_else(T::zero);
+
+        sub.iter()
+            .for_each(|value| total += (*value - mean).powi(2));
+    });
+
+    total.sum()
 }
 
 /// Fast median calculation.

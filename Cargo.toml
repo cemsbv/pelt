@@ -20,6 +20,7 @@ crate-type = ["cdylib", "rlib"]
 python = ["dep:numpy", "dep:pyo3"]
 
 [dependencies]
+accurate = { default-features = false, version = "0.4.1" }
 ahash = "0.8.12"
 ndarray = "0.17.1"
 num-traits = "0.2.19"

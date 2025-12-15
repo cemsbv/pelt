@@ -1,6 +1,6 @@
 [project]
 name = "pelt"
-version = "0.1.0"
+version = "0.2.0"
 description = "Changepoint detection with Pruned Exact Linear Time"
 requires-python = ">=3.11"
 readme = "README.md"

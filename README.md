@@ -18,7 +18,7 @@ Changepoint detection with Pruned Exact Linear Time.
 ```python
 from pelt import predict
 
-predict(signal, penalty=20, segment_cost_function="l1", jump=10, minimum_segment_length=2, keep_initial_zero=False)
+predict(signal, penalty=20, segment_cost_function="l1", jump=10, minimum_segment_length=2, sum_method="kahan")
 ```
 
 ### Rust

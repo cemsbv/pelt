@@ -2,7 +2,7 @@
 
 use std::ops::Range;
 
-use accurate::traits::{SumAccumulator, SumWithAccumulator};
+use accurate::traits::{SumAccumulator, SumWithAccumulator as _};
 use ndarray::{ArrayView1, ArrayView2};
 use num_traits::{Float, float::TotalOrder};
 
@@ -41,9 +41,12 @@ where
     // Total loss across all axes
     let mut total = S::zero();
 
+    // Slice for the range
+    let slice = ndarray::s!(range);
+
     signal.columns().into_iter().for_each(|column| {
         // Take the sub slice of the 2D object
-        let sub = column.slice(ndarray::s!(range.clone()));
+        let sub = column.slice(slice);
 
         // Calculate the median
         let median = median(sub);
@@ -68,9 +71,12 @@ where
     // How many rows there are
     let rows_length = T::from(range.clone().count()).unwrap_or_else(T::zero);
 
+    // Slice for the range
+    let slice = ndarray::s!(range);
+
     signal.columns().into_iter().for_each(|column| {
         // Take the sub slice of the 2D object
-        let sub = column.slice(ndarray::s!(range.clone()));
+        let sub = column.slice(slice);
 
         // Calculate variance
         let mean = sub.iter().copied().sum_with_accumulator::<S>() / rows_length;

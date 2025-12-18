@@ -55,8 +55,8 @@ mod pelt {
             .with_minimum_segment_length(minimum_segment_length);
 
         let indices = match sum_method {
-            "kahan" => setup.predict::<Kahan<_>, _>(signal.as_array(), penalty)?,
-            "naive" => setup.predict::<Naive<_>, _>(signal.as_array(), penalty)?,
+            "kahan" => setup.predict::<Kahan>(signal.as_array(), penalty)?,
+            "naive" => setup.predict::<Naive>(signal.as_array(), penalty)?,
             // Handle unknown case
             _ => {
                 return Err(PyValueError::new_err(

@@ -40,7 +40,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         eprintln!("L1:");
         match Pelt::new()
             .with_segment_cost_function(SegmentCostFunction::L1)
-            .predict::<Naive<_>, _>(&signal, 20.0_f64)
+            .predict::<Naive>(&signal, 20.0_f64)
         {
             Ok(result) => println!("{result:?}"),
             // Print the error
@@ -50,7 +50,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         eprintln!("L2:");
         match Pelt::new()
             .with_segment_cost_function(SegmentCostFunction::L2)
-            .predict::<Naive<_>, _>(&signal, 20.0_f64)
+            .predict::<Naive>(&signal, 20.0_f64)
         {
             Ok(result) => println!("{result:?}"),
             // Print the error

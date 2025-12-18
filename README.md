@@ -35,7 +35,7 @@ let pelt = Pelt::new()
 // Do the calculation on a data set
 let penalty = 10.0;
 // Use more accurate Kahan summation for all math
-let result = pelt.predict::<Kahan<_>, _>(&signal[..], penalty)?;
+let result = pelt.predict::<Kahan>(&signal[..], penalty)?;
 ```
 
 ## Run locally
@@ -68,14 +68,15 @@ Comparison with [ruptures](https://centre-borelli.github.io/ruptures-docs/code-r
 
 | Benchmark | Min (+) | Max (+) | Mean (+) |
 | -- | -- | -- | -- |
-| ruptures L1 vs pelt L1 | -102.1x |  -101.4x | -101.6x |
-| ruptures L2 vs pelt L2 | -1578.8x | -1587.7x | -1591.1x |
+| ruptures L1 vs pelt L1 | -112.9x |  -114.4x | -113.9x |
+| ruptures L2 vs pelt L2 | -298.3x | -304.3x | -301.1x |
 
 <details>
 
 <summary>Command</summary>
 
 ```sh
+maturin develop --features python --release
 richbench benches/
 ```
 
@@ -88,18 +89,18 @@ Timer precision: 20 ns
 bench                fastest       │ slowest       │ median        │ mean          │ samples │ iters
 ├─ large                           │               │               │               │         │
 │  ├─ Kahan<f64>                   │               │               │               │         │
-│  │  ├─ L1          161.2 ms      │ 202.3 ms      │ 162.3 ms      │ 165.3 ms      │ 100     │ 100
-│  │  ╰─ L2          4.832 ms      │ 4.923 ms      │ 4.845 ms      │ 4.852 ms      │ 100     │ 100
+│  │  ├─ L1          160.1 ms      │ 196.7 ms      │ 171.6 ms      │ 170.8 ms      │ 100     │ 100
+│  │  ╰─ L2          13.48 ms      │ 15.92 ms      │ 14.19 ms      │ 14.12 ms      │ 100     │ 100
 │  ╰─ Naive<f64>                   │               │               │               │         │
-│     ├─ L1          126.6 ms      │ 159.2 ms      │ 127.7 ms      │ 131.5 ms      │ 100     │ 100
-│     ╰─ L2          1.436 ms      │ 1.591 ms      │ 1.45 ms       │ 1.455 ms      │ 100     │ 100
+│     ├─ L1          124.3 ms      │ 144.7 ms      │ 132.5 ms      │ 131.4 ms      │ 100     │ 100
+│     ╰─ L2          13.56 ms      │ 16.5 ms       │ 14.64 ms      │ 14.59 ms      │ 100     │ 100
 ╰─ small                           │               │               │               │         │
    ├─ Kahan<f64>                   │               │               │               │         │
-   │  ├─ L1          247.4 µs      │ 295.3 µs      │ 252.7 µs      │ 254 µs        │ 100     │ 100
-   │  ╰─ L2          65.22 µs      │ 73.42 µs      │ 66.02 µs      │ 66.31 µs      │ 100     │ 100
+   │  ├─ L1          246 µs        │ 268.7 µs      │ 250.8 µs      │ 252.3 µs      │ 100     │ 100
+   │  ╰─ L2          48.85 µs      │ 72.17 µs      │ 53.48 µs      │ 54.64 µs      │ 100     │ 100
    ╰─ Naive<f64>                   │               │               │               │         │
-      ├─ L1          189.7 µs      │ 254.7 µs      │ 196.3 µs      │ 197.5 µs      │ 100     │ 100
-      ╰─ L2          27.19 µs      │ 38.14 µs      │ 28.05 µs      │ 28.45 µs      │ 100     │ 100
+      ├─ L1          187.7 µs      │ 229.5 µs      │ 193.3 µs      │ 194.8 µs      │ 100     │ 100
+      ╰─ L2          46.99 µs      │ 71.8 µs       │ 51.51 µs      │ 52.54 µs      │ 100     │ 100
 ```
 
 <details>

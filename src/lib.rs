@@ -10,18 +10,18 @@ use std::{marker::PhantomData, num::NonZero};
 use ahash::AHashMap;
 pub use cost::SegmentCostFunction;
 pub use error::Error;
+use fearless_simd::Level;
 use ndarray::{ArrayView2, AsArray, Ix2};
-use num_traits::{Float, Zero, float::TotalOrder};
 
 /// Kahan summation
 ///
 /// Source: [`accurate::sum::Kahan`], slower but more accurate.
-pub type Kahan<T> = accurate::sum::Kahan<T>;
+pub type Kahan = accurate::sum::Kahan<f64>;
 
 /// Naive floating point summation, very fast but inaccurate.
 ///
 /// Source: [`accurate::sum::NaiveSum`].
-pub type Naive<T> = accurate::sum::NaiveSum<T>;
+pub type Naive = accurate::sum::NaiveSum<f64>;
 
 /// Which sum algorithm to use.
 pub use accurate::traits::SumAccumulator as Sum;
@@ -95,28 +95,30 @@ impl Pelt {
     ///
     /// - When the input is invalid.
     /// - When anything went wrong during calculation.
-    pub fn predict<'a, S, T>(
+    pub fn predict<'a, S>(
         &self,
-        signal: impl AsArray<'a, T, Ix2>,
-        penalty: T,
+        signal: impl AsArray<'a, f64, Ix2>,
+        penalty: f64,
     ) -> Result<Vec<usize>, Error>
     where
-        S: Sum<T>,
-        T: Float + TotalOrder + 'a,
+        S: Sum<f64>,
     {
         let signal_view = signal.into();
 
-        self.predict_impl::<S, T>(signal_view, penalty)
+        // Call implementation, finding runtime SIMD levels
+        self.predict_impl::<S>(signal_view, penalty)
     }
 
     /// [`Self::predict`] implementation outside of generic to avoid code duplication.
-    fn predict_impl<S, T>(&self, signal: ArrayView2<T>, penalty: T) -> Result<Vec<usize>, Error>
+    fn predict_impl<S>(&self, signal: ArrayView2<f64>, penalty: f64) -> Result<Vec<usize>, Error>
     where
-        S: Sum<T>,
-        T: Float + TotalOrder,
+        S: Sum<f64>,
     {
+        // Detect the SIMD mechanism at runtime
+        let simd_level = Level::new();
+
         // `partitions[t]` stores the optimal partition of `signal[0..t]`
-        let mut partitions: AHashMap<usize, Partition<S, T>> = AHashMap::new();
+        let mut partitions: AHashMap<usize, Partition<S>> = AHashMap::new();
         partitions.insert(0, Partition::default());
 
         // List of indices we can accept
@@ -136,18 +138,23 @@ impl Pelt {
             for admissible_start in &admissible {
                 // Handle case where there's no partitions yet, shouldn't happen
                 let Some(partition) = partitions.get(admissible_start) else {
+                    branches::mark_unlikely();
                     return Err(Error::NotEnoughPoints);
                 };
 
                 // Handle invalid case for too short segments
-                if breakpoint.saturating_sub(*admissible_start) < self.minimum_segment_length {
+                if branches::unlikely(
+                    breakpoint.saturating_sub(*admissible_start) < self.minimum_segment_length,
+                ) {
                     return Err(Error::NotEnoughPoints);
                 }
 
                 // Calculate loss function for the admissible range
-                let loss = self
-                    .segment_cost_function
-                    .loss(signal, *admissible_start..breakpoint);
+                let loss = self.segment_cost_function.loss(
+                    simd_level,
+                    signal,
+                    *admissible_start..breakpoint,
+                );
 
                 // Update with the right partition
                 let mut new_partition = partition.clone();
@@ -223,22 +230,22 @@ impl Default for Pelt {
 
 /// A single partition.
 #[derive(Clone)]
-struct Partition<S, T> {
+struct Partition<S> {
     /// End of ranges it applies to.
     ranges: Vec<usize>,
     /// Sum of all loss and penalty values.
     loss_and_penalty_sum: S,
-    /// Ignore `T`.
-    _phantom: PhantomData<T>,
+    /// Ignore `f64`.
+    _phantom: PhantomData<f64>,
 }
 
-impl<S, T> Partition<S, T>
+impl<S> Partition<S>
 where
-    S: Sum<T>,
+    S: Sum<f64>,
 {
     /// Push a new value.
     #[inline]
-    pub fn push(&mut self, range: usize, loss: S, penalty: T) {
+    pub fn push(&mut self, range: usize, loss: S, penalty: f64) {
         self.ranges.push(range);
 
         self.loss_and_penalty_sum = self.loss_and_penalty_sum.clone() + loss.sum() + penalty;
@@ -246,15 +253,14 @@ where
 
     /// Get the sum of the loss and penalty.
     #[inline]
-    pub fn loss_and_penalty_sum(&self) -> T {
+    pub fn loss_and_penalty_sum(&self) -> f64 {
         self.loss_and_penalty_sum.clone().sum()
     }
 }
 
-impl<S, T> Default for Partition<S, T>
+impl<S> Default for Partition<S>
 where
-    S: Sum<T>,
-    T: Zero,
+    S: Sum<f64>,
 {
     #[inline]
     fn default() -> Self {

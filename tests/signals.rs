@@ -16,7 +16,7 @@ fn pelt_small() {
 
     // Test prediction
     assert_eq!(
-        pelt.predict::<Kahan<_>, _>(
+        pelt.predict::<Kahan>(
             common::load_signals_fixture(include_str!("../tests/signals.txt")).view(),
             10.0
         )
@@ -35,7 +35,7 @@ fn pelt_large() {
 
     // Test prediction
     assert_eq!(
-        pelt.predict::<Kahan<_>, _>(
+        pelt.predict::<Kahan>(
             common::load_signals_fixture(include_str!("../tests/signals-large.txt")).view(),
             10.0
         )

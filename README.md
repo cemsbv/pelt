@@ -68,8 +68,8 @@ Comparison with [ruptures](https://centre-borelli.github.io/ruptures-docs/code-r
 
 | Benchmark | Min (+) | Max (+) | Mean (+) |
 | -- | -- | -- | -- |
-| ruptures L1 vs pelt L1 | -112.9x |  -114.4x | -113.9x |
-| ruptures L2 vs pelt L2 | -298.3x | -304.3x | -301.1x |
+| ruptures L1 vs pelt L1 | -115.3x | -118.1x | -116.4x |
+| ruptures L2 vs pelt L2 | -347.4x | -365.4x | -353.3x |
 
 <details>
 
@@ -86,21 +86,21 @@ richbench benches/
 
 ```
 Timer precision: 20 ns
-bench                fastest       │ slowest       │ median        │ mean          │ samples │ iters
-├─ large                           │               │               │               │         │
-│  ├─ Kahan<f64>                   │               │               │               │         │
-│  │  ├─ L1          160.1 ms      │ 196.7 ms      │ 171.6 ms      │ 170.8 ms      │ 100     │ 100
-│  │  ╰─ L2          13.48 ms      │ 15.92 ms      │ 14.19 ms      │ 14.12 ms      │ 100     │ 100
-│  ╰─ Naive<f64>                   │               │               │               │         │
-│     ├─ L1          124.3 ms      │ 144.7 ms      │ 132.5 ms      │ 131.4 ms      │ 100     │ 100
-│     ╰─ L2          13.56 ms      │ 16.5 ms       │ 14.64 ms      │ 14.59 ms      │ 100     │ 100
-╰─ small                           │               │               │               │         │
-   ├─ Kahan<f64>                   │               │               │               │         │
-   │  ├─ L1          246 µs        │ 268.7 µs      │ 250.8 µs      │ 252.3 µs      │ 100     │ 100
-   │  ╰─ L2          48.85 µs      │ 72.17 µs      │ 53.48 µs      │ 54.64 µs      │ 100     │ 100
-   ╰─ Naive<f64>                   │               │               │               │         │
-      ├─ L1          187.7 µs      │ 229.5 µs      │ 193.3 µs      │ 194.8 µs      │ 100     │ 100
-      ╰─ L2          46.99 µs      │ 71.8 µs       │ 51.51 µs      │ 52.54 µs      │ 100     │ 100
+bench            fastest       │ slowest       │ median        │ mean          │ samples │ iters
+├─ large                       │               │               │               │         │
+│  ├─ Kahan                    │               │               │               │         │
+│  │  ├─ L1      158.8 ms      │ 184.8 ms      │ 159.6 ms      │ 163.6 ms      │ 100     │ 100
+│  │  ╰─ L2      7.963 ms      │ 10.35 ms      │ 8.684 ms      │ 8.639 ms      │ 100     │ 100
+│  ╰─ Naive                    │               │               │               │         │
+│     ├─ L1      122.6 ms      │ 159.7 ms      │ 131.9 ms      │ 132.2 ms      │ 100     │ 100
+│     ╰─ L2      7.676 ms      │ 9.949 ms      │ 8.326 ms      │ 8.458 ms      │ 100     │ 100
+╰─ small                       │               │               │               │         │
+   ├─ Kahan                    │               │               │               │         │
+   │  ├─ L1      223.7 µs      │ 300 µs        │ 225.9 µs      │ 232.5 µs      │ 100     │ 100
+   │  ╰─ L2      19.06 µs      │ 53.73 µs      │ 19.39 µs      │ 20.7 µs       │ 100     │ 100
+   ╰─ Naive                    │               │               │               │         │
+      ├─ L1      162.5 µs      │ 240.6 µs      │ 166.3 µs      │ 170.4 µs      │ 100     │ 100
+      ╰─ L2      16.89 µs      │ 24.88 µs      │ 17.42 µs      │ 17.64 µs      │ 100     │ 100
 ```
 
 <details>

@@ -5,13 +5,14 @@ mod error;
 #[cfg(feature = "python")]
 mod python;
 
-use std::{marker::PhantomData, num::NonZero};
+use std::num::NonZero;
 
 use ahash::AHashMap;
 pub use cost::SegmentCostFunction;
 pub use error::Error;
 use fearless_simd::Level;
 use ndarray::{ArrayView2, AsArray, Ix2};
+use smallvec::SmallVec;
 
 /// Kahan summation
 ///
@@ -177,17 +178,19 @@ impl Pelt {
             // Threshold loss to filter each partition
             let loss_current_part = min_subproblem.loss_and_penalty_sum() + penalty;
 
+            // We apply a zip to the subproblems manually
+            admissible.resize(subproblems.len(), 0);
+
             // Filter the admissible array
-            admissible = admissible
-                .into_iter()
-                // Clear the subproblems array
-                .zip(subproblems.drain(..))
-                // Keep the admissible parts that follow the loss function
-                .filter_map(|(admissible_start, subproblem)| {
-                    (subproblem.loss_and_penalty_sum() < loss_current_part)
-                        .then_some(admissible_start)
-                })
-                .collect();
+            let mut index = 0;
+            admissible.retain(|_admissible| {
+                // Drain and zip the subproblems
+                let subproblem = &subproblems[index];
+                index += 1;
+
+                subproblem.loss_and_penalty_sum() < loss_current_part
+            });
+            subproblems.clear();
         }
 
         // Get the best partition
@@ -232,11 +235,9 @@ impl Default for Pelt {
 #[derive(Clone)]
 struct Partition<S> {
     /// End of ranges it applies to.
-    ranges: Vec<usize>,
+    ranges: SmallVec<usize, 8>,
     /// Sum of all loss and penalty values.
     loss_and_penalty_sum: S,
-    /// Ignore `f64`.
-    _phantom: PhantomData<f64>,
 }
 
 impl<S> Partition<S>
@@ -265,9 +266,8 @@ where
     #[inline]
     fn default() -> Self {
         Self {
-            ranges: Vec::with_capacity(8),
+            ranges: SmallVec::new(),
             loss_and_penalty_sum: S::zero(),
-            _phantom: PhantomData,
         }
     }
 }

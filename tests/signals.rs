@@ -17,7 +17,7 @@ fn pelt_small() {
     // Test prediction
     assert_eq!(
         pelt.predict::<Kahan>(
-            common::load_signals_fixture(include_str!("../tests/signals.txt")).view(),
+            common::load_signals_fixture(include_str!("../tests/signals-small.csv")).view(),
             10.0
         )
         .expect("Error predicting"),
@@ -36,10 +36,53 @@ fn pelt_large() {
     // Test prediction
     assert_eq!(
         pelt.predict::<Kahan>(
-            common::load_signals_fixture(include_str!("../tests/signals-large.txt")).view(),
+            common::load_signals_fixture(include_str!("../tests/signals-large.csv")).view(),
             10.0
         )
         .expect("Error predicting"),
         vec![2000, 4000]
+    );
+}
+
+/// `ruptures.datasets.pw_normal(1000, 10)`.
+#[test]
+fn pelt_10_changepoints_normal_l1() {
+    let data = common::load_signals_fixture(include_str!("../tests/normal-10.csv"));
+
+    let pelt = Pelt::new()
+        .with_jump(NonZero::new(5).expect("Invalid number"))
+        .with_minimum_segment_length(NonZero::new(2).expect("Invalid number"))
+        .with_segment_cost_function(SegmentCostFunction::L1);
+
+    // Test prediction
+    assert_eq!(
+        pelt.predict::<Kahan>(data.view(), 3.0)
+            .expect("Error predicting"),
+        vec![
+            10, 15, 165, 180, 220, 380, 400, 425, 450, 480, 495, 505, 515, 530, 545, 755, 760, 830,
+            850, 880, 960, 975, 1000
+        ]
+    );
+}
+
+/// `ruptures.datasets.pw_normal(1000, 10)`.
+#[test]
+fn pelt_10_changepoints_normal_l2() {
+    let data = common::load_signals_fixture(include_str!("../tests/normal-10.csv"));
+
+    let pelt = Pelt::new()
+        .with_jump(NonZero::new(5).expect("Invalid number"))
+        .with_minimum_segment_length(NonZero::new(2).expect("Invalid number"))
+        .with_segment_cost_function(SegmentCostFunction::L2);
+
+    // Test prediction
+    assert_eq!(
+        pelt.predict::<Kahan>(data.view(), 3.0)
+            .expect("Error predicting"),
+        vec![
+            10, 15, 20, 70, 75, 80, 190, 225, 230, 310, 320, 345, 360, 365, 380, 425, 430, 435,
+            455, 460, 465, 480, 495, 510, 515, 530, 545, 555, 560, 565, 575, 585, 595, 610, 715,
+            735, 740, 755, 775, 805, 810, 840, 850, 895, 915, 965, 975, 1000
+        ]
     );
 }

@@ -1,30 +1,22 @@
 //! Shared functionality between integration tests.
 
+use std::io::Cursor;
+
+use csv::ReaderBuilder;
 use ndarray::Array2;
+use ndarray_csv::Array2Reader as _;
 
 /// Load the signals from a text file.
 #[must_use]
 pub fn load_signals_fixture(file: &'static str) -> Array2<f64> {
-    // Load the signal dataset
-    let data = file
-        .lines()
-        .enumerate()
-        .map(|(line, float)| {
-            float.parse::<f64>().unwrap_or_else(|_| {
-                panic!(
-                    "Test value '{float}' on line {} is not a valid float",
-                    line + 1
-                )
-            })
-        })
-        .collect::<Vec<_>>();
+    // Read CSV
+    let mut cursor = Cursor::new(file);
+    let mut reader = ReaderBuilder::new()
+        .has_headers(false)
+        .from_reader(&mut cursor);
 
-    // Convert to ndarray
-    let mut array = Array2::zeros((data.len(), 1));
-    array
-        .iter_mut()
-        .zip(data)
-        .for_each(|(item, data)| *item = data);
-
-    array
+    // Convert to array
+    reader
+        .deserialize_array2_dynamic()
+        .expect("Error deserializing CSV into array")
 }

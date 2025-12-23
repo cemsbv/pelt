@@ -33,6 +33,18 @@ impl SegmentCostFunction {
             Self::L2 => l2(simd_level, signal, range),
         }
     }
+
+    /// Heuristic for determining whether to use a parallel iterator.
+    #[cfg(feature = "rayon")]
+    #[inline]
+    pub(crate) const fn should_use_threading(self, iterations: usize) -> bool {
+        match self {
+            // L1 is slow, so with a couple of iterations it already pays off
+            Self::L1 => iterations >= 32,
+            // L2 is quite fast, so it's only worthwhile with many iterations
+            Self::L2 => iterations >= 512,
+        }
+    }
 }
 
 /// L1 loss function.

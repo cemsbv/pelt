@@ -6,7 +6,7 @@ use pelt::{Kahan, Naive, Pelt, SegmentCostFunction, Sum};
 
 /// Benchmark the small signals file.
 #[divan::bench(args = [SegmentCostFunction::L1, SegmentCostFunction::L2], types = [Kahan, Naive])]
-fn small<S: Sum<f64>>(bencher: Bencher, segment_cost_function: SegmentCostFunction) {
+fn small<S: Sum<f64> + Send + Sync>(bencher: Bencher, segment_cost_function: SegmentCostFunction) {
     bencher
         .with_inputs(|| load_signals_fixture(include_str!("../tests/signals.txt")))
         .bench_local_values(move |array: Array2<f64>| {
@@ -19,7 +19,7 @@ fn small<S: Sum<f64>>(bencher: Bencher, segment_cost_function: SegmentCostFuncti
 
 /// Benchmark the large signals file.
 #[divan::bench(args = [SegmentCostFunction::L1, SegmentCostFunction::L2], types = [Kahan, Naive])]
-fn large<S: Sum<f64>>(bencher: Bencher, segment_cost_function: SegmentCostFunction) {
+fn large<S: Sum<f64> + Send + Sync>(bencher: Bencher, segment_cost_function: SegmentCostFunction) {
     bencher
         .with_inputs(|| load_signals_fixture(include_str!("../tests/signals-large.txt")))
         .bench_local_values(move |array: Array2<f64>| {

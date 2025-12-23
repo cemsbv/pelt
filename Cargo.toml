@@ -17,6 +17,10 @@ name = "pelt"
 crate-type = ["cdylib", "rlib"]
 
 [features]
+default = ["rayon"]
+rayon = [
+  "dep:rayon",
+]
 python = ["dep:numpy", "dep:pyo3"]
 
 [dependencies]
@@ -29,6 +33,9 @@ fearless_simd = { git = "https://github.com/linebender/fearless_simd" }
 ndarray = "0.17.1"
 smallvec = "2.0.0-alpha.12"
 thiserror = "2.0.17"
+
+# Behind `rayon` feature flag
+rayon = { optional = true, version = "1.11.0" }
 
 # Behind `python` feature flag
 numpy = { optional = true, version = "0.27.1" }

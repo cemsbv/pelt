@@ -68,8 +68,8 @@ Comparison with [ruptures](https://centre-borelli.github.io/ruptures-docs/code-r
 
 | Benchmark | Min (+) | Max (+) | Mean (+) |
 | -- | -- | -- | -- |
-| ruptures L1 vs pelt L1 | -115.3x | -118.1x | -116.4x |
-| ruptures L2 vs pelt L2 | -347.4x | -365.4x | -353.3x |
+| ruptures L1 vs pelt L1 | -263.9x | -239.8x | -255.6x |
+| ruptures L2 vs pelt L2 | -439.8x | -455.7x | -447.6x |
 
 <details>
 
@@ -89,18 +89,18 @@ Timer precision: 20 ns
 bench            fastest       │ slowest       │ median        │ mean          │ samples │ iters
 ├─ large                       │               │               │               │         │
 │  ├─ Kahan                    │               │               │               │         │
-│  │  ├─ L1      158.8 ms      │ 184.8 ms      │ 159.6 ms      │ 163.6 ms      │ 100     │ 100
-│  │  ╰─ L2      7.963 ms      │ 10.35 ms      │ 8.684 ms      │ 8.639 ms      │ 100     │ 100
+│  │  ├─ L1      41.89 ms      │ 89 ms         │ 45.54 ms      │ 48.45 ms      │ 100     │ 100
+│  │  ╰─ L2      8.63 ms       │ 9.518 ms      │ 8.7 ms        │ 8.757 ms      │ 100     │ 100
 │  ╰─ Naive                    │               │               │               │         │
-│     ├─ L1      122.6 ms      │ 159.7 ms      │ 131.9 ms      │ 132.2 ms      │ 100     │ 100
-│     ╰─ L2      7.676 ms      │ 9.949 ms      │ 8.326 ms      │ 8.458 ms      │ 100     │ 100
+│     ├─ L1      43.23 ms      │ 71.51 ms      │ 46.76 ms      │ 48.25 ms      │ 100     │ 100
+│     ╰─ L2      8.413 ms      │ 10.71 ms      │ 8.499 ms      │ 8.839 ms      │ 100     │ 100
 ╰─ small                       │               │               │               │         │
    ├─ Kahan                    │               │               │               │         │
-   │  ├─ L1      223.7 µs      │ 300 µs        │ 225.9 µs      │ 232.5 µs      │ 100     │ 100
-   │  ╰─ L2      19.06 µs      │ 53.73 µs      │ 19.39 µs      │ 20.7 µs       │ 100     │ 100
+   │  ├─ L1      214.2 µs      │ 234.2 µs      │ 216.4 µs      │ 217.6 µs      │ 100     │ 100
+   │  ╰─ L2      21.54 µs      │ 25.81 µs      │ 21.94 µs      │ 22.06 µs      │ 100     │ 100
    ╰─ Naive                    │               │               │               │         │
-      ├─ L1      162.5 µs      │ 240.6 µs      │ 166.3 µs      │ 170.4 µs      │ 100     │ 100
-      ╰─ L2      16.89 µs      │ 24.88 µs      │ 17.42 µs      │ 17.64 µs      │ 100     │ 100
+      ├─ L1      155.1 µs      │ 168.2 µs      │ 157 µs        │ 157.7 µs      │ 100     │ 100
+      ╰─ L2      20.85 µs      │ 24.39 µs      │ 21.24 µs      │ 21.3 µs       │ 100     │ 100
 ```
 
 <details>

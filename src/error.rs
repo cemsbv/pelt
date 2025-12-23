@@ -9,4 +9,8 @@ pub enum Error {
     /// No segments got calculated.
     #[error("calculation didn't return any segments")]
     NoSegmentsFound,
+    /// No mutex lock got acquired.
+    #[cfg(feature = "rayon")]
+    #[error("could not acquire mutex lock")]
+    MutexLock,
 }

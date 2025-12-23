@@ -2,12 +2,74 @@
 
 use std::io::Cursor;
 
+use criterion::{BenchmarkId, Criterion};
 use csv::ReaderBuilder;
-use divan::Bencher;
+// use divan::Bencher;
 use ndarray::Array2;
 use ndarray_csv::Array2Reader as _;
-use pelt::{Kahan, Naive, Pelt, SegmentCostFunction, Sum};
+use pelt::{Kahan, Naive, Pelt, SegmentCostFunction};
 
+/// Benchmark the different groups and cases.
+fn benchmark(criterion: &mut Criterion) {
+    // Create different benchmark groups based on the files to test
+    for (name, signal_data) in [
+        ("small", include_str!("../tests/signals-small.csv")),
+        ("large", include_str!("../tests/signals-large.csv")),
+        ("2D", include_str!("../tests/normal-10.csv")),
+    ] {
+        let mut group = criterion.benchmark_group(name);
+
+        let signal = load_signals_fixture(signal_data);
+
+        // Benchmark each segment cost function
+        for segment_cost_function in [SegmentCostFunction::L1, SegmentCostFunction::L2] {
+            let parameter = match segment_cost_function {
+                SegmentCostFunction::L1 => "L1",
+                SegmentCostFunction::L2 => "L2",
+            };
+
+            // Benchmark "naive"
+            group.bench_with_input(
+                BenchmarkId::new("Naive", parameter),
+                &signal.view(),
+                |benchmark, signal| {
+                    benchmark.iter(|| {
+                        // Run the benchmark
+                        let result = Pelt::new()
+                            .with_segment_cost_function(std::hint::black_box(segment_cost_function))
+                            .predict::<Naive>(
+                                std::hint::black_box(signal),
+                                std::hint::black_box(10.0),
+                            );
+                        let _ = std::hint::black_box(result);
+                    });
+                },
+            );
+
+            // Benchmark "kahan"
+            group.bench_with_input(
+                BenchmarkId::new("Kahan", parameter),
+                &signal.view(),
+                |benchmark, signal| {
+                    benchmark.iter(|| {
+                        // Run the benchmark
+                        let result = Pelt::new()
+                            .with_segment_cost_function(std::hint::black_box(segment_cost_function))
+                            .predict::<Kahan>(
+                                std::hint::black_box(signal),
+                                std::hint::black_box(10.0),
+                            );
+                        let _ = std::hint::black_box(result);
+                    });
+                },
+            );
+        }
+
+        group.finish();
+    }
+}
+
+/*
 /// Benchmark the small signals file.
 #[divan::bench(args = [SegmentCostFunction::L1, SegmentCostFunction::L2], types = [Kahan, Naive])]
 fn small<S: Sum<f64> + Send + Sync>(bencher: Bencher, segment_cost_function: SegmentCostFunction) {
@@ -49,6 +111,7 @@ fn small_2d<S: Sum<f64> + Send + Sync>(
             divan::black_box_drop(result);
         });
 }
+*/
 
 /// Load the signals from a text file.
 #[must_use]
@@ -65,6 +128,5 @@ pub fn load_signals_fixture(file: &'static str) -> Array2<f64> {
         .expect("Error deserializing CSV into array")
 }
 
-fn main() {
-    divan::main();
-}
+criterion::criterion_group!(benches, benchmark);
+criterion::criterion_main!(benches);

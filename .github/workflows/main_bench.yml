@@ -1,0 +1,43 @@
+on:
+  push:
+    branches: main
+
+jobs:
+  bench:
+    name: Benchmark
+    permissions:
+      checks: write
+    runs-on: ubuntu-latest
+    env:
+      BENCHER_PROJECT: pelt
+      BENCHER_API_TOKEN: ${{ secrets.BENCHER_API_TOKEN }}
+    steps:
+      # Checkout the main branch
+      - uses: actions/checkout@v6
+
+      # Install rust stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      # Cache the built dependencies
+      - uses: Swatinem/rust-cache@v2.8.2
+        with:
+          save-if: ${{ github.event_name == 'push' }}
+
+      # Use benchmark tool
+      - uses: bencherdev/bencher@main
+
+      - run: |
+          bencher run \
+          --branch main \
+          --testbed ubuntu-latest \
+          --threshold-measure latency \
+          --threshold-test t_test \
+          --threshold-max-sample-size 64 \
+          --threshold-upper-boundary 0.99 \
+          --thresholds-reset \
+          --err \
+          --adapter rust_criterion \
+          --github-actions '${{ secrets.GITHUB_TOKEN }}' \
+          cargo bench --profile release

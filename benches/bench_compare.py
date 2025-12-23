@@ -2,30 +2,32 @@ import numpy as np
 from scipy import stats
 from pelt import predict
 from ruptures.detection import Pelt
+from ruptures.datasets import pw_normal
 
-# Generate random signal data with 2 groups
-signal = np.r_[stats.norm(-1,1).rvs(2000), stats.norm(2, 1).rvs(2000)]
-signal_2d = np.array([signal]).transpose()
+# Generate random signal data with 10 groups
+def benchmark(segment, data, changepoints) :
+    # Generate random data
+    (signal, _) = pw_normal(data, changepoints)
 
-def pelt_l1():
-    """ L1 on pelt"""
-    predict(signal_2d, penalty=10, segment_cost_function="l1", sum_method="naive")
+    def pelt():
+        predict(signal, penalty=10, segment_cost_function=segment, sum_method="naive")
 
-def ruptures_l1():
-    """ L1 on ruptures"""
-    Pelt(model='l1').fit_predict(signal, pen=10)
+    def ruptures():
+        Pelt(model=segment).fit_predict(signal, pen=10)
 
-
-def pelt_l2():
-    """ L2 on pelt"""
-    predict(signal_2d, penalty=10, segment_cost_function="l2", sum_method="naive")
-
-def ruptures_l2():
-    """ L2 on ruptures"""
-    Pelt(model='l2').fit_predict(signal, pen=10)
+    return (ruptures, pelt, f"{segment.upper()} | {data} | {changepoints}")
 
 __benchmarks__ = [
-    (pelt_l1, ruptures_l1, "ruptures L1 vs pelt L1"),
-    (pelt_l2, ruptures_l2, "ruptures L2 vs pelt L2"),
+    benchmark("l1", 100, 2),
+    benchmark("l1", 100, 10),
+    benchmark("l1", 1000, 2),
+    benchmark("l1", 1000, 10),
+    benchmark("l1", 1000, 100),
+
+    benchmark("l2", 100, 2),
+    benchmark("l2", 100, 10),
+    benchmark("l2", 1000, 2),
+    benchmark("l2", 1000, 10),
+    benchmark("l2", 1000, 100),
 ]
 

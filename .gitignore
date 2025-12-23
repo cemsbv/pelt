@@ -5,5 +5,5 @@ target
 *.lock
 perf.data
 flamegraph.svg
-__pycache__
+__pycache__/
 *.gz

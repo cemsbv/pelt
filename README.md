@@ -60,24 +60,23 @@ python
 
 ## Benchmarks
 
-Like all benchmarks, take these with a grain of salt.
+> [!WARNING]
+> Like all benchmarks, take these with a grain of salt.
 
 ### Python
 
 Comparison with [ruptures](https://centre-borelli.github.io/ruptures-docs/code-reference/detection/pelt-reference/):
 
-| Cost Function | Data Points | Change Points | Min | Max | Mean | Min (+) | Max (+) | Mean (+) |
-| -- | -- | -- | -- | -- | -- | -- | -- | -- |
-| L1 | 100 | 2 | 0.026 | 0.027 | 0.026 | 0.000 (212.4x) | 0.000 (96.5x) | 0.000 (167.8x) |
-| L1 | 100 | 10 | 0.026 | 0.026 | 0.026 | 0.000 (224.0x) | 0.000 (178.7x) | 0.000 (213.0x) |
-| L1 | 1000 | 2 | 2.930 | 3.063 | 2.997 | 0.019 (154.2x) | 0.021 (144.1x) | 0.020 (151.9x) |
-| L1 | 1000 | 10 | 2.495 | 2.664 | 2.608 | 0.021 (116.6x) | 0.023 (113.8x) | 0.022 (117.6x) |
-| L1 | 1000 | 100 | 3.180 | 3.262 | 3.238 | 0.022 (147.5x) | 0.023 (143.4x) | 0.022 (147.4x) |
-| L2 | 100 | 2 | 0.015 | 0.016 | 0.016 | 0.000 (555.0x) | 0.000 (450.2x) | 0.000 (528.7x) |
-| L2 | 100 | 10 | 0.015 | 0.015 | 0.015 | 0.000 (534.1x) | 0.000 (470.6x) | 0.000 (517.6x) |
-| L2 | 1000 | 2 | 0.632 | 0.695 | 0.656 | 0.005 (129.3x) | 0.005 (141.1x) | 0.005 (134.0x) |
-| L2 | 1000 | 10 | 1.059 | 1.112 | 1.088 | 0.007 (160.5x) | 0.007 (166.6x) | 0.007 (164.2x) |
-| L2 | 1000 | 100 | 0.990 | 1.052 | 1.011 | 0.004 (223.0x) | 0.005 (233.2x) | 0.004 (226.4x) |
+| Cost Function | Data Points | Mean `pelt` | Mean `ruptures` | Times Faster |
+| -- | -- | -- | -- | -- |
+| _L1_ | _100_ | 0.036ms | 5.240ms | 145.0x |
+| _L1_ | _1000_ | 4.808ms | 624.217ms | 129.8x |
+| _L1_ | _5000_ | 80.155ms | 6.420s | 80.1x |
+| _L1_ | _10000_ | 405.558ms | 30.711s | 75.7x |
+| _L2_ | _100_ | 0.008ms | 3.781ms | **456.3x** |
+| _L2_ | _1000_ | 0.669ms | 100.897ms | 150.7x |
+| _L2_ | _5000_ | 4.376ms | 634.385ms | 145.0x |
+| _L2_ | _10000_ | 20.479ms | 1.724s | 84.2x |
 
 <details>
 
@@ -85,44 +84,12 @@ Comparison with [ruptures](https://centre-borelli.github.io/ruptures-docs/code-r
 
 ```sh
 maturin develop --features python --release
-richbench benches/
-```
-
-</details>
-
-### Rust
-
-```
-Timer precision: 20 ns
-bench            fastest       │ slowest       │ median        │ mean          │ samples │ iters
-├─ large                       │               │               │               │         │
-│  ├─ Kahan                    │               │               │               │         │
-│  │  ├─ L1      41.89 ms      │ 89 ms         │ 45.54 ms      │ 48.45 ms      │ 100     │ 100
-│  │  ╰─ L2      8.63 ms       │ 9.518 ms      │ 8.7 ms        │ 8.757 ms      │ 100     │ 100
-│  ╰─ Naive                    │               │               │               │         │
-│     ├─ L1      43.23 ms      │ 71.51 ms      │ 46.76 ms      │ 48.25 ms      │ 100     │ 100
-│     ╰─ L2      8.413 ms      │ 10.71 ms      │ 8.499 ms      │ 8.839 ms      │ 100     │ 100
-╰─ small                       │               │               │               │         │
-   ├─ Kahan                    │               │               │               │         │
-   │  ├─ L1      214.2 µs      │ 234.2 µs      │ 216.4 µs      │ 217.6 µs      │ 100     │ 100
-   │  ╰─ L2      21.54 µs      │ 25.81 µs      │ 21.94 µs      │ 22.06 µs      │ 100     │ 100
-   ╰─ Naive                    │               │               │               │         │
-      ├─ L1      155.1 µs      │ 168.2 µs      │ 157 µs        │ 157.7 µs      │ 100     │ 100
-      ╰─ L2      20.85 µs      │ 24.39 µs      │ 21.24 µs      │ 21.3 µs       │ 100     │ 100
-```
-
-<details>
-
-<summary>Command</summary>
-
-```sh
-cargo bench --profile release
+python benches/bench_compare.py
 ```
 
 </details>
 
 ## Profile
-
 
 <details>
 

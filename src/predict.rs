@@ -1,7 +1,5 @@
 //! Predict implementation.
 
-use std::ops::Range;
-
 use ahash::AHashMap;
 use fearless_simd::Level;
 use ndarray::ArrayView2;
@@ -156,15 +154,47 @@ impl<S: Sum<f64> + Send + Sync> PredictImpl<S> {
         signal: ArrayView2<f64>,
         penalty: f64,
     ) -> Result<(), Error> {
-        for admissible_start in &self.admissible {
-            self.subproblems.push(self.find_subproblem(
+        // We store the result but calculate everything even if it fails, so we can use extend
+        let mut result = Ok(());
+
+        let iter = self.admissible.iter().map(|admissible_start| {
+            // Handle case where there's no partitions yet, shouldn't happen
+            let Some(partition) = self.partitions.get(admissible_start) else {
+                branches::mark_unlikely();
+                // Store the error
+                result = Err(Error::NotEnoughPoints);
+
+                // We have to return something
+                return Partition::default();
+            };
+
+            // Handle invalid case for too short segments
+            if branches::unlikely(
+                breakpoint.saturating_sub(*admissible_start) < self.pelt.minimum_segment_length,
+            ) {
+                // Store the error
+                result = Err(Error::NotEnoughPoints);
+
+                // We have to return something
+                return Partition::default();
+            }
+
+            // Calculate loss function for the admissible range
+            let loss = self.pelt.segment_cost_function.loss(
+                self.simd_level,
                 signal,
                 *admissible_start..breakpoint,
-                penalty,
-            )?);
-        }
+            );
 
-        Ok(())
+            // Update with the right partition
+            let mut new_partition = partition.clone();
+            new_partition.push(breakpoint, loss, penalty);
+
+            new_partition
+        });
+        self.subproblems.extend(iter);
+
+        result
     }
 
     /// Split admissible into sub problems based on the breakpoint, spread across threads.
@@ -176,51 +206,55 @@ impl<S: Sum<f64> + Send + Sync> PredictImpl<S> {
         signal: ArrayView2<f64>,
         penalty: f64,
     ) -> Result<(), Error> {
-        use rayon::iter::{IntoParallelRefIterator as _, ParallelIterator as _};
-
-        self.subproblems = self
-            .admissible
-            .par_iter()
-            .map(|admissible_start| {
-                self.find_subproblem(signal, *admissible_start..breakpoint, penalty)
-            })
-            .collect::<Result<_, _>>()?;
-
-        Ok(())
-    }
-
-    /// Calculate loss for a specific partition and add it to a new partition.
-    #[inline]
-    fn find_subproblem(
-        &self,
-        signal: ArrayView2<f64>,
-        range: Range<usize>,
-        penalty: f64,
-    ) -> Result<Partition<S>, Error> {
-        // Handle case where there's no partitions yet, shouldn't happen
-        let Some(partition) = self.partitions.get(&range.start) else {
-            branches::mark_unlikely();
-            return Err(Error::NotEnoughPoints);
+        use rayon::iter::{
+            IntoParallelRefIterator as _, ParallelExtend as _, ParallelIterator as _,
         };
+        use std::sync::atomic::{AtomicU8, Ordering};
 
-        // Handle invalid case for too short segments
-        if branches::unlikely(
-            range.end.saturating_sub(range.start) < self.pelt.minimum_segment_length,
-        ) {
-            return Err(Error::NotEnoughPoints);
-        }
+        // We store the result but calculate everything even if it fails, so we can use extend
+        // The error, zero if there is none and otherwise the error as a number
+        // Works because all enum variants are unit
+        let error = AtomicU8::new(0);
 
-        // Calculate loss function for the admissible range
-        let loss = self
-            .pelt
-            .segment_cost_function
-            .loss(self.simd_level, signal, range.clone());
+        let iter = self.admissible.par_iter().map(|admissible_start| {
+            // Handle case where there's no partitions yet, shouldn't happen
+            let Some(partition) = self.partitions.get(admissible_start) else {
+                branches::mark_unlikely();
+                // Store the error
+                error.store(Error::NotEnoughPoints.into_error_u8(), Ordering::Relaxed);
 
-        // Update with the right partition
-        let mut new_partition = partition.clone();
-        new_partition.push(range.end, loss, penalty);
+                // We have to return something
+                return Partition::default();
+            };
 
-        Ok(new_partition)
+            // Handle invalid case for too short segments
+            if branches::unlikely(
+                breakpoint.saturating_sub(*admissible_start) < self.pelt.minimum_segment_length,
+            ) {
+                // Store the error
+                error.store(Error::NotEnoughPoints.into_error_u8(), Ordering::Relaxed);
+
+                // We have to return something
+                return Partition::default();
+            }
+
+            // Calculate loss function for the admissible range
+            let loss = self.pelt.segment_cost_function.loss(
+                self.simd_level,
+                signal,
+                *admissible_start..breakpoint,
+            );
+
+            // Update with the right partition
+            let mut new_partition = partition.clone();
+            new_partition.push(breakpoint, loss, penalty);
+
+            new_partition
+        });
+        self.subproblems.par_extend(iter);
+
+        // Handle the error case
+        Error::try_from_u8(error.into_inner())
     }
 }
 

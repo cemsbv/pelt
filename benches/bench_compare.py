@@ -18,7 +18,7 @@ def benchmark(segment, data, repeat):
     (signal, _) = pw_normal(data, 10, 0)
 
     def pelt():
-        predict(signal, penalty=10, segment_cost_function=segment, sum_method="naive")
+        predict(signal, penalty=10, segment_cost_function=segment)
 
     def ruptures():
         Pelt(model=segment).fit_predict(signal, pen=10)

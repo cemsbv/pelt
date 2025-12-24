@@ -1,46 +1,30 @@
 //! Example of reading a 1D txt file.
 
-use std::error::Error;
+use std::{error::Error, fs::File};
 
-use ndarray::Array2;
-use pelt::{Naive, Pelt, SegmentCostFunction};
+use csv::ReaderBuilder;
+use ndarray_csv::Array2Reader as _;
+use pelt::{Pelt, SegmentCostFunction};
 
 pub fn main() -> Result<(), Box<dyn Error>> {
     // Try to read each argument as a file
     for arg in std::env::args().skip(1) {
         eprintln!("Reading file '{arg}'");
 
-        let file = std::fs::read_to_string(arg)?;
+        // Read CSV file
+        let mut file = File::open(arg)?;
+        let mut reader = ReaderBuilder::new()
+            .has_headers(false)
+            .from_reader(&mut file);
 
-        // Load the signal dataset
-        let data = file
-            .lines()
-            .enumerate()
-            .filter_map(|(line, float)| {
-                float
-                    .parse::<f64>()
-                    .inspect_err(|err| {
-                        eprintln!(
-                            "Test value '{float}' on line {} is not a valid float: {err}",
-                            line + 1
-                        )
-                    })
-                    .ok()
-            })
-            .collect::<Vec<_>>();
-
-        // Convert to ndarray
-        let mut signal = Array2::zeros((data.len(), 1));
-        signal
-            .iter_mut()
-            .zip(data)
-            .for_each(|(item, data)| *item = data);
+        // Convert to array
+        let signal = reader.deserialize_array2_dynamic()?;
 
         // Run the algorithm
         eprintln!("L1:");
         match Pelt::new()
             .with_segment_cost_function(SegmentCostFunction::L1)
-            .predict::<Naive>(&signal, 20.0_f64)
+            .predict(&signal, 10.0_f64)
         {
             Ok(result) => println!("{result:?}"),
             // Print the error
@@ -50,7 +34,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         eprintln!("L2:");
         match Pelt::new()
             .with_segment_cost_function(SegmentCostFunction::L2)
-            .predict::<Naive>(&signal, 20.0_f64)
+            .predict(&signal, 10.0_f64)
         {
             Ok(result) => println!("{result:?}"),
             // Print the error

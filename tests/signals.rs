@@ -4,7 +4,7 @@ mod common;
 
 use std::num::NonZero;
 
-use pelt::{Kahan, Pelt, SegmentCostFunction};
+use pelt::{Pelt, SegmentCostFunction};
 
 /// Ensure the main algorithm is correct.
 #[test]
@@ -16,7 +16,7 @@ fn pelt_small() {
 
     // Test prediction
     assert_eq!(
-        pelt.predict::<Kahan>(
+        pelt.predict(
             common::load_signals_fixture(include_str!("../tests/signals-small.csv")).view(),
             10.0
         )
@@ -35,7 +35,7 @@ fn pelt_large() {
 
     // Test prediction
     assert_eq!(
-        pelt.predict::<Kahan>(
+        pelt.predict(
             common::load_signals_fixture(include_str!("../tests/signals-large.csv")).view(),
             10.0
         )
@@ -56,8 +56,7 @@ fn pelt_10_changepoints_normal_l1() {
 
     // Test prediction
     assert_eq!(
-        pelt.predict::<Kahan>(data.view(), 3.0)
-            .expect("Error predicting"),
+        pelt.predict(data.view(), 3.0).expect("Error predicting"),
         vec![
             10, 15, 165, 180, 220, 380, 400, 425, 450, 480, 495, 505, 515, 530, 545, 755, 760, 830,
             850, 880, 960, 975, 1000
@@ -77,8 +76,7 @@ fn pelt_10_changepoints_normal_l2() {
 
     // Test prediction
     assert_eq!(
-        pelt.predict::<Kahan>(data.view(), 3.0)
-            .expect("Error predicting"),
+        pelt.predict(data.view(), 3.0).expect("Error predicting"),
         vec![
             10, 15, 20, 70, 75, 80, 190, 225, 230, 310, 320, 345, 360, 365, 380, 425, 430, 435,
             455, 460, 465, 480, 495, 510, 515, 530, 545, 555, 560, 565, 575, 585, 595, 610, 715,

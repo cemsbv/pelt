@@ -11,21 +11,7 @@ use std::num::NonZero;
 pub use cost::SegmentCostFunction;
 pub use error::Error;
 use ndarray::{AsArray, Ix2};
-
-/// Kahan summation
-///
-/// Source: [`accurate::sum::Kahan`], slower but more accurate.
-pub type Kahan = accurate::sum::Kahan<f64>;
-
-/// Naive floating point summation, very fast but inaccurate.
-///
-/// Source: [`accurate::sum::NaiveSum`].
-pub type Naive = accurate::sum::NaiveSum<f64>;
-
-/// Which sum algorithm to use.
-pub use accurate::traits::SumAccumulator as Sum;
-
-use crate::predict::PredictImpl;
+use predict::PredictImpl;
 
 /// PELT algorithm.
 ///
@@ -96,18 +82,15 @@ impl Pelt {
     ///
     /// - When the input is invalid.
     /// - When anything went wrong during calculation.
-    pub fn predict<'a, S>(
+    pub fn predict<'a>(
         &self,
         signal: impl AsArray<'a, f64, Ix2>,
         penalty: f64,
-    ) -> Result<Vec<usize>, Error>
-    where
-        S: Sum<f64> + Send + Sync,
-    {
+    ) -> Result<Vec<usize>, Error> {
         let signal_view = signal.into();
 
         // Using this struct has the additional benefit of reducing code duplication from the signal
-        PredictImpl::<S>::new(self.clone()).predict(signal_view, penalty)
+        PredictImpl::new(self.clone()).predict(signal_view, penalty)
     }
 }
 

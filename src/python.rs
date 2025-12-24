@@ -18,16 +18,15 @@ mod pelt {
     use numpy::{PyArray1, PyArrayLike2};
     use pyo3::{exceptions::PyValueError, prelude::*};
 
-    use crate::{Kahan, Naive, Pelt, SegmentCostFunction};
+    use crate::{Pelt, SegmentCostFunction};
 
     /// Calculate the changepoints.
-    #[pyfunction(signature = (signal, penalty, segment_cost_function = "l1", sum_method = "kahan", jump = 10, minimum_segment_length = 2))]
+    #[pyfunction(signature = (signal, penalty, segment_cost_function = "l1", jump = 10, minimum_segment_length = 2))]
     fn predict<'py>(
         py: Python<'py>,
         signal: PyArrayLike2<'py, f64>,
         penalty: f64,
         segment_cost_function: &str,
-        sum_method: &str,
         jump: usize,
         minimum_segment_length: usize,
     ) -> PyResult<Bound<'py, PyArray1<usize>>> {
@@ -53,17 +52,7 @@ mod pelt {
             .with_segment_cost_function(segment_cost_function)
             .with_jump(jump)
             .with_minimum_segment_length(minimum_segment_length);
-
-        let indices = match sum_method {
-            "kahan" => setup.predict::<Kahan>(signal.as_array(), penalty)?,
-            "naive" => setup.predict::<Naive>(signal.as_array(), penalty)?,
-            // Handle unknown case
-            _ => {
-                return Err(PyValueError::new_err(
-                    "sum_method must be 'kahan' or 'naive'",
-                ));
-            }
-        };
+        let indices = setup.predict(signal.as_array(), penalty)?;
 
         Ok(PyArray1::from_vec(py, indices))
     }

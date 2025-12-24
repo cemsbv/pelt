@@ -5,23 +5,23 @@ use fearless_simd::Level;
 use ndarray::ArrayView2;
 use smallvec::SmallVec;
 
-use crate::{Error, Pelt, Sum};
+use crate::{Error, Pelt};
 
 /// Implementation of predict with state.
-pub struct PredictImpl<S> {
+pub struct PredictImpl {
     /// Pelt data.
     pelt: Pelt,
     /// `partitions[t]` stores the optimal partition of `signal[0..t]`.
-    partitions: AHashMap<usize, Partition<S>>,
+    partitions: AHashMap<usize, Partition>,
     /// List of indices we can accept
     admissible: Vec<usize>,
     /// All subproblems.
-    subproblems: Vec<Partition<S>>,
+    subproblems: Vec<Partition>,
     /// What SIMD features we can use.
     simd_level: Level,
 }
 
-impl<S: Sum<f64> + Send + Sync> PredictImpl<S> {
+impl PredictImpl {
     /// Setup the structures.
     pub(crate) fn new(pelt: Pelt) -> Self {
         // Detect the SIMD mechanism at runtime
@@ -129,7 +129,7 @@ impl<S: Sum<f64> + Send + Sync> PredictImpl<S> {
 
     /// Calculate the proposed changepoint indices.
     #[inline]
-    fn proposed_indices(&self, signal_len: usize) -> impl Iterator<Item = usize> + use<S> {
+    fn proposed_indices(&self, signal_len: usize) -> impl Iterator<Item = usize> + use<> {
         // Skip the minimum length to the next jump
         let start = self
             .pelt
@@ -260,41 +260,35 @@ impl<S: Sum<f64> + Send + Sync> PredictImpl<S> {
 
 /// A single partition.
 #[derive(Clone)]
-struct Partition<S> {
+struct Partition {
     /// End of ranges it applies to.
     ranges: SmallVec<usize, 8>,
     /// Sum of all loss and penalty values.
-    loss_and_penalty_sum: S,
+    loss_and_penalty_sum: f64,
 }
 
-impl<S> Partition<S>
-where
-    S: Sum<f64>,
-{
+impl Partition {
     /// Push a new value.
     #[inline]
-    pub fn push(&mut self, range: usize, loss: S, penalty: f64) {
+    pub fn push(&mut self, range: usize, loss: f64, penalty: f64) {
         self.ranges.push(range);
 
-        self.loss_and_penalty_sum = self.loss_and_penalty_sum.clone() + loss.sum() + penalty;
+        self.loss_and_penalty_sum = self.loss_and_penalty_sum + loss + penalty;
     }
 
     /// Get the sum of the loss and penalty.
     #[inline]
-    pub fn loss_and_penalty_sum(&self) -> f64 {
-        self.loss_and_penalty_sum.clone().sum()
+    pub const fn loss_and_penalty_sum(&self) -> f64 {
+        self.loss_and_penalty_sum
     }
 }
 
-impl<S> Default for Partition<S>
-where
-    S: Sum<f64>,
-{
+impl Default for Partition {
     #[inline]
     fn default() -> Self {
         Self {
             ranges: SmallVec::new(),
-            loss_and_penalty_sum: S::zero(),
+            loss_and_penalty_sum: 0.0,
         }
     }
 }
@@ -303,15 +297,13 @@ where
 mod tests {
     use std::num::NonZero;
 
-    use crate::Kahan;
-
     use super::*;
 
     /// Ensure the proposed indices algorithm is correct.
     #[test]
     fn proposed_indices() {
         assert_eq!(
-            PredictImpl::<Kahan>::new(
+            PredictImpl::new(
                 Pelt::new()
                     .with_jump(NonZero::new(5).expect("Invalid number"))
                     .with_minimum_segment_length(NonZero::new(2).expect("Invalid number"))
@@ -322,7 +314,7 @@ mod tests {
         );
 
         assert_eq!(
-            PredictImpl::<Kahan>::new(
+            PredictImpl::new(
                 Pelt::new()
                     .with_jump(NonZero::new(5).expect("Invalid number"))
                     .with_minimum_segment_length(NonZero::new(8).expect("Invalid number"))

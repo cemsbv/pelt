@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2025-12-24
+
+### Documentation
+- *Readme*: Fix Python example
+
+### Features
+- *Rayon*: `rayon` feature flag which runs algorithm in parallel
+
+### Performance
+- *Alloc*: Reduce allocations
+- *Cost*: Move slice calculation outside of loop
+- *Predict*: Reduce allocations by extending from iterator
+- *Simd*:  [**BREAKING**]Make all types `f64` to apply SIMD subroutines
+
+### Refactor
+- *Dimensions*:  [**BREAKING**]Allow input to be 1D or 2D
+- *Math*:  [**BREAKING**]Remove generic summing method because it was not applied consistently
+
+### Testing
+- *Ruptures*: Add test from ruptures for L1 and L2
+
+### Bench
+- *Cases*: Benchmark 2 dimensional case
+- *Python*: Simplify benchmarks
+- *Rust*: Move to bencher and criterion
+
 ## [0.2.0] - 2025-12-15
 
 ### Bug Fixes

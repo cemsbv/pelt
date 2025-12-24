@@ -1,6 +1,7 @@
 //! Changepoint detection with Pruned Exact Linear Time.
 
 pub(crate) mod cost;
+pub(crate) mod dim;
 pub(crate) mod error;
 pub(crate) mod predict;
 #[cfg(feature = "python")]
@@ -9,8 +10,9 @@ mod python;
 use std::num::NonZero;
 
 pub use cost::SegmentCostFunction;
+pub use dim::OneOrTwoDimensions;
 pub use error::Error;
-use ndarray::{AsArray, Ix2};
+use ndarray::{AsArray, Dimension};
 use predict::PredictImpl;
 
 /// PELT algorithm.
@@ -82,15 +84,23 @@ impl Pelt {
     ///
     /// - When the input is invalid.
     /// - When anything went wrong during calculation.
-    pub fn predict<'a>(
+    pub fn predict<'a, D>(
         &self,
-        signal: impl AsArray<'a, f64, Ix2>,
+        signal: impl AsArray<'a, f64, D>,
         penalty: f64,
-    ) -> Result<Vec<usize>, Error> {
+    ) -> Result<Vec<usize>, Error>
+    where
+        D: OneOrTwoDimensions + Dimension,
+    {
         let signal_view = signal.into();
 
-        // Using this struct has the additional benefit of reducing code duplication from the signal
-        PredictImpl::new(self.clone()).predict(signal_view, penalty)
+        // Try to lower 2D to 1D to parse as 1D array, since that's faster
+        D::try_as_1d(&signal_view).map_or_else(
+            // Predict as 2D array
+            || PredictImpl::new(self.clone()).predict(&signal_view, penalty),
+            // Predict as 1D array
+            |signal_1d| PredictImpl::new(self.clone()).predict(&signal_1d, penalty),
+        )
     }
 }
 

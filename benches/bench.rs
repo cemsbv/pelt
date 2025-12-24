@@ -2,8 +2,9 @@
 
 use std::io::Cursor;
 
-use criterion::{BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, Throughput};
 use csv::ReaderBuilder;
+use fearless_simd::Level;
 use ndarray::Array2;
 use ndarray_csv::Array2Reader as _;
 use pelt::{Pelt, SegmentCostFunction};
@@ -16,9 +17,9 @@ fn benchmark(criterion: &mut Criterion) {
         ("large", include_str!("../tests/signals-large.csv")),
         ("2D", include_str!("../tests/normal-10.csv")),
     ] {
-        let mut group = criterion.benchmark_group(name);
-
         let signal = load_signals_fixture(signal_data);
+
+        let mut group = criterion.benchmark_group(name);
 
         // Benchmark each segment cost function
         for segment_cost_function in [SegmentCostFunction::L1, SegmentCostFunction::L2] {
@@ -41,6 +42,43 @@ fn benchmark(criterion: &mut Criterion) {
                     });
                 },
             );
+        }
+
+        group.finish();
+    }
+
+    {
+        // Benchmark cost function
+        let mut group = criterion.benchmark_group("cost");
+
+        let signal = load_signals_fixture(include_str!("../tests/normal-10.csv"));
+
+        // Benchmark each segment cost function
+        for segment_cost_function in [SegmentCostFunction::L1, SegmentCostFunction::L2] {
+            let parameter = match segment_cost_function {
+                SegmentCostFunction::L1 => "L1",
+                SegmentCostFunction::L2 => "L2",
+            };
+
+            // Benchmark these ranges
+            for size in [1_usize, 4, 10, 32, 100] {
+                group.throughput(Throughput::Elements(size as u64));
+
+                group.bench_with_input(
+                    BenchmarkId::new(parameter, size),
+                    &(Level::new(), signal.view()),
+                    |benchmark, (simd_level, signal)| {
+                        benchmark.iter(|| {
+                            // Run the benchmark
+                            segment_cost_function.loss(
+                                std::hint::black_box(*simd_level),
+                                std::hint::black_box(signal),
+                                std::hint::black_box(0..size),
+                            )
+                        });
+                    },
+                );
+            }
         }
 
         group.finish();

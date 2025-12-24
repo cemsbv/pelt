@@ -3,7 +3,9 @@
 use std::ops::Range;
 
 use fearless_simd::{Level, Simd, SimdBase as _, SimdInto as _};
-use ndarray::{ArrayView1, ArrayView2};
+use ndarray::{ArrayView, ArrayView1, ArrayView2, Dimension};
+
+use crate::OneOrTwoDimensions;
 
 /// Segment model cost function, also known as the loss function.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -17,16 +19,15 @@ pub enum SegmentCostFunction {
 
 impl SegmentCostFunction {
     /// Calculate the loss.
+    #[doc(hidden)]
     #[inline]
-    pub(crate) fn loss(
-        self,
-        simd_level: Level,
-        signal: ArrayView2<f64>,
-        range: Range<usize>,
-    ) -> f64 {
+    pub fn loss<D>(self, simd_level: Level, signal: &ArrayView<f64, D>, range: Range<usize>) -> f64
+    where
+        D: OneOrTwoDimensions + Dimension,
+    {
         match self {
-            Self::L1 => l1(signal, range),
-            Self::L2 => l2(simd_level, signal, range),
+            Self::L1 => D::l1(signal, range),
+            Self::L2 => D::l2(simd_level, signal, range),
         }
     }
 
@@ -43,28 +44,26 @@ impl SegmentCostFunction {
     }
 }
 
-/// L1 loss function.
+/// L1 loss function for 1 dimensional array.
 #[inline]
-fn l1(signal: ArrayView2<f64>, range: Range<usize>) -> f64 {
-    // Slice for the range
-    let slice = ndarray::s!(range);
+pub(crate) fn l1_1d(signal: &ArrayView1<f64>, range: Range<usize>) -> f64 {
+    // Take the sub slice of the 2D object
+    let segment = signal.slice(ndarray::s!(range));
 
+    // Calculate the median
+    let median = median(segment);
+
+    segment.iter().map(|signal| (*signal - median).abs()).sum()
+}
+
+/// L1 loss function for 2 dimensional array.
+#[inline]
+pub(crate) fn l1_2d(signal: &ArrayView2<f64>, range: Range<usize>) -> f64 {
     // Total loss across all axes
     signal
         .columns()
         .into_iter()
-        .map(|column| {
-            // Take the sub slice of the 2D object
-            let segment = column.slice(slice);
-
-            // Calculate the median
-            let median = median(segment);
-
-            segment
-                .iter()
-                .map(|signal| (*signal - median).abs())
-                .sum::<f64>()
-        })
+        .map(|column| l1_1d(&column, range.clone()))
         .sum()
 }
 
@@ -72,42 +71,45 @@ fn l1(signal: ArrayView2<f64>, range: Range<usize>) -> f64 {
 ///
 /// Calculated using Welford's algorithm.
 #[inline]
-fn l2(simd_level: Level, signal: ArrayView2<f64>, range: Range<usize>) -> f64 {
+pub(crate) fn l2_1d(simd_level: Level, signal: &ArrayView1<f64>, range: Range<usize>) -> f64 {
     // How many rows there are
     let rows_length = range.end.saturating_sub(range.start) as f64;
 
-    // Slice for the range
-    let slice = ndarray::s!(range);
+    // Take the sub slice of the 2D object
+    let segment = signal.slice(ndarray::s!(range));
 
+    // Handle the fast case where we can treat the data as a contiguous slice
+    let (sum, sum_sqr) = segment.as_slice().map_or_else(
+        || {
+            // Slow case, use the sub-optimal non-contiguous iterator
+            let mut sum = 0.0;
+            let mut sum_sqr = 0.0;
+
+            segment.iter().for_each(|value| {
+                sum += *value;
+                sum_sqr += value.powi(2);
+            });
+
+            (sum, sum_sqr)
+        },
+        // Fast case, handle with SIMD
+        |slice| fearless_simd::dispatch!(simd_level, simd => sum_and_sum_sqr(simd, slice)),
+    );
+
+    // Calculate sum of squares using Welford's algorithm
+    sum_sqr - sum.powi(2) / rows_length
+}
+
+/// L2 loss function.
+///
+/// Calculated using Welford's algorithm.
+#[inline]
+pub(crate) fn l2_2d(simd_level: Level, signal: &ArrayView2<f64>, range: Range<usize>) -> f64 {
     // Calculate total loss
     signal
         .columns()
         .into_iter()
-        .map(|column| {
-            // Take the sub slice of the 2D object
-            let segment = column.slice(slice);
-
-            // Handle the fast case where we can treat the data as a contiguous slice
-            let (sum, sum_sqr) = segment.as_slice().map_or_else(
-                || {
-                    // Slow case, use the sub-optimal non-contiguous iterator
-                    let mut sum = 0.0;
-                    let mut sum_sqr = 0.0;
-
-                    segment.iter().for_each(|value| {
-                        sum += *value;
-                        sum_sqr += value.powi(2);
-                    });
-
-                    (sum, sum_sqr)
-                },
-                // Fast case, handle with SIMD
-                |slice| fearless_simd::dispatch!(simd_level, simd => sum_and_sum_sqr(simd, slice)),
-            );
-
-            // Calculate sum of squares using Welford's algorithm
-            sum_sqr - sum.powi(2) / rows_length
-        })
+        .map(|column| l2_1d(simd_level, &column, range.clone()))
         .sum()
 }
 
@@ -176,16 +178,22 @@ mod tests {
     /// Check the L1 cost function.
     #[test]
     fn l1() {
-        let array = ndarray::array![[10.0], [30.0], [20.0]];
-        assert_eq!(super::l1(array.view(), 0..3), 20.0);
+        let array_1d = ndarray::array![10.0, 30.0, 20.0];
+        assert_eq!(super::l1_1d(&array_1d.view(), 0..3), 20.0);
+
+        let array_2d = ndarray::array![[10.0], [30.0], [20.0]];
+        assert_eq!(super::l1_2d(&array_2d.view(), 0..3), 20.0);
     }
 
     /// Check the L2 cost function.
     #[test]
     fn l2() {
-        let array = ndarray::array![[10.0], [30.0], [20.0]];
+        let array_1d = ndarray::array![10.0, 30.0, 20.0];
+        let result = super::l2_1d(Level::new(), &array_1d.view(), 0..3);
+        assert_eq!(result, 200.0);
 
-        let result = super::l2(Level::new(), array.view(), 0..3);
+        let array_2d = ndarray::array![[10.0], [30.0], [20.0]];
+        let result = super::l2_2d(Level::new(), &array_2d.view(), 0..3);
         assert_eq!(result, 200.0);
     }
 

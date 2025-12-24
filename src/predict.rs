@@ -2,10 +2,10 @@
 
 use ahash::AHashMap;
 use fearless_simd::Level;
-use ndarray::ArrayView2;
+use ndarray::{ArrayView, Dimension};
 use smallvec::SmallVec;
 
-use crate::{Error, Pelt};
+use crate::{Error, OneOrTwoDimensions, Pelt};
 
 /// Implementation of predict with state.
 pub struct PredictImpl {
@@ -47,13 +47,19 @@ impl PredictImpl {
     }
 
     /// Run the calculation loop.
-    pub(crate) fn predict(
+    pub(crate) fn predict<D>(
         &mut self,
-        signal: ArrayView2<f64>,
+        signal: &ArrayView<f64, D>,
         penalty: f64,
-    ) -> Result<Vec<usize>, Error> {
+    ) -> Result<Vec<usize>, Error>
+    where
+        D: OneOrTwoDimensions + Dimension,
+    {
+        // Length as the rows
+        let len = D::len_or_nrows(signal);
+
         // Find the initial changepoint indices
-        for breakpoint in self.proposed_indices(signal.nrows()) {
+        for breakpoint in self.proposed_indices(len) {
             // Add points from 0 to the current breakpoint as admissible
             let new_admission_point = (breakpoint.saturating_sub(self.pelt.minimum_segment_length)
                 / self.pelt.jump)
@@ -113,10 +119,7 @@ impl PredictImpl {
         }
 
         // Get the best partition
-        let best_part = self
-            .partitions
-            .remove(&signal.nrows())
-            .ok_or(Error::NoSegmentsFound)?;
+        let best_part = self.partitions.remove(&len).ok_or(Error::NoSegmentsFound)?;
 
         // Extract the indices
         let mut indices = best_part.ranges;
@@ -148,12 +151,15 @@ impl PredictImpl {
 
     /// Split admissible into sub problems based on the breakpoint.
     #[inline]
-    fn split_into_subproblems(
+    fn split_into_subproblems<D>(
         &mut self,
         breakpoint: usize,
-        signal: ArrayView2<f64>,
+        signal: &ArrayView<f64, D>,
         penalty: f64,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error>
+    where
+        D: OneOrTwoDimensions + Dimension,
+    {
         // We store the result but calculate everything even if it fails, so we can use extend
         let mut result = Ok(());
 
@@ -200,12 +206,15 @@ impl PredictImpl {
     /// Split admissible into sub problems based on the breakpoint, spread across threads.
     #[cfg(feature = "rayon")]
     #[inline]
-    fn par_split_into_subproblems(
+    fn par_split_into_subproblems<D>(
         &mut self,
         breakpoint: usize,
-        signal: ArrayView2<f64>,
+        signal: &ArrayView<f64, D>,
         penalty: f64,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error>
+    where
+        D: OneOrTwoDimensions + Dimension,
+    {
         use rayon::iter::{
             IntoParallelRefIterator as _, ParallelExtend as _, ParallelIterator as _,
         };

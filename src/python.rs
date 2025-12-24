@@ -15,7 +15,7 @@ impl From<Error> for PyErr {
 mod pelt {
     use std::num::NonZero;
 
-    use numpy::{PyArray1, PyArrayLike2};
+    use numpy::{Ix1, Ix2, PyArray1, PyArrayLikeDyn};
     use pyo3::{exceptions::PyValueError, prelude::*};
 
     use crate::{Pelt, SegmentCostFunction};
@@ -24,7 +24,7 @@ mod pelt {
     #[pyfunction(signature = (signal, penalty, segment_cost_function = "l1", jump = 10, minimum_segment_length = 2))]
     fn predict<'py>(
         py: Python<'py>,
-        signal: PyArrayLike2<'py, f64>,
+        signal: PyArrayLikeDyn<'py, f64>,
         penalty: f64,
         segment_cost_function: &str,
         jump: usize,
@@ -52,7 +52,28 @@ mod pelt {
             .with_segment_cost_function(segment_cost_function)
             .with_jump(jump)
             .with_minimum_segment_length(minimum_segment_length);
-        let indices = setup.predict(signal.as_array(), penalty)?;
+
+        // Try to coerce the input into a dimension we can use
+        let signal = signal.as_array();
+        let indices = match signal.ndim() {
+            1 => setup.predict(
+                signal
+                    .into_dimensionality::<Ix1>()
+                    .map_err(|_| PyValueError::new_err("dimension mismatch"))?,
+                penalty,
+            )?,
+            2 => setup.predict(
+                signal
+                    .into_dimensionality::<Ix2>()
+                    .map_err(|_| PyValueError::new_err("dimension mismatch"))?,
+                penalty,
+            )?,
+            _ => {
+                return Err(PyValueError::new_err(
+                    "signal array dimensions must be 1 or 2",
+                ));
+            }
+        };
 
         Ok(PyArray1::from_vec(py, indices))
     }

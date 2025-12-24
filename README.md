@@ -67,16 +67,20 @@ python
 
 Comparison with [ruptures](https://centre-borelli.github.io/ruptures-docs/code-reference/detection/pelt-reference/):
 
-| Cost Function | Data Points | Mean `pelt` | Mean `ruptures` | Times Faster |
-| -- | -- | -- | -- | -- |
-| _L1_ | _100_ | 0.039ms | 5.467ms | 141.9x |
-| _L1_ | _1000_ | 3.879ms | 630.194ms | 162.5x |
-| _L1_ | _5000_ | 69.164ms | 6.281s | 90.8x |
-| _L1_ | _10000_ | 359.668ms | 31.199s | 86.7x |
-| _L2_ | _100_ | 0.007ms | 3.639ms | **554.6x** |
-| _L2_ | _1000_ | 0.535ms | 105.516ms | 197.2x |
-| _L2_ | _5000_ | 5.075ms | 636.501ms | 125.4x |
-| _L2_ | _10000_ | 19.621ms | 1.701s | 86.7x |
+| Cost Function | Data Points | Data Dimension | Mean `pelt` | Mean `ruptures` | Times Faster |
+| -- | -- | -- | -- | -- | -- |
+| _L2_ | _100_ | _1D_ | 0.004ms | 3.113ms | **753.1x** |
+| _L2_ | _100_ | _2D_ | 0.005ms | 3.251ms | **608.5x** |
+| _L2_ | _1000_ | _1D_ | 0.419ms | 188.546ms | 449.8x |
+| _L2_ | _1000_ | _2D_ | 0.572ms | 94.201ms | 164.7x |
+| _L2_ | _10000_ | _1D_ | 95.851ms | 12.103s | 126.3x |
+| _L2_ | _10000_ | _2D_ | 19.871ms | 1.778s | 89.5x |
+| _L1_ | _100_ | _1D_ | 0.010ms | 5.101ms | **508.8x** |
+| _L1_ | _100_ | _2D_ | 0.025ms | 5.323ms | 213.0x |
+| _L1_ | _1000_ | _1D_ | 0.641ms | 180.250ms | 281.3x |
+| _L1_ | _1000_ | _2D_ | 3.595ms | 638.049ms | 177.5x |
+| _L1_ | _10000_ | _1D_ | 43.444ms | 15.710s | 361.6x |
+| _L1_ | _10000_ | _2D_ | 364.553ms | 30.572s | 83.9x |
 
 <details>
 

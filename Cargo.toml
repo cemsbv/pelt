@@ -67,7 +67,8 @@ panic = "abort"
 [lints.clippy]
 # Nursery
 nursery = { level = "warn", priority = -1 }
-iter_with_drain = "allow"
+# False positive
+redundant_pub_crate = "allow"
 
 # Restrictions
 dbg_macro = "warn"

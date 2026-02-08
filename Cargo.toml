@@ -37,8 +37,8 @@ thiserror = { default-features = false, version = "2.0.17" }
 rayon = { optional = true, version = "1.11.0" }
 
 # Behind `python` feature flag
-numpy = { optional = true, version = "0.27.1" }
-pyo3 = { features = ["extension-module"], optional = true, version = "0.27.2" }
+numpy = { optional = true, version = "0.28.0" }
+pyo3 = { features = ["extension-module"], optional = true, version = "0.28.0" }
 
 [dev-dependencies]
 criterion = "0.8.1"

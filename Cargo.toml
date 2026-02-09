@@ -25,13 +25,13 @@ python = ["dep:numpy", "dep:pyo3"]
 
 [dependencies]
 ahash = "0.8.12"
-branches = { default-features = false, version = "0.4.3" }
+branches = { default-features = false, version = "0.4.4" }
 # TODO: wait for the release so we can add `f64s`
 # fearless_simd = "0.3.0"
 fearless_simd = { git = "https://github.com/linebender/fearless_simd" }
-ndarray = { default-features = false, version = "0.17.1" }
+ndarray = { default-features = false, version = "0.17.2" }
 smallvec = "2.0.0-alpha.12"
-thiserror = { default-features = false, version = "2.0.17" }
+thiserror = { default-features = false, version = "2.0.18" }
 
 # Behind `rayon` feature flag
 rayon = { optional = true, version = "1.11.0" }
@@ -41,7 +41,7 @@ numpy = { optional = true, version = "0.28.0" }
 pyo3 = { features = ["extension-module"], optional = true, version = "0.28.0" }
 
 [dev-dependencies]
-criterion = "0.8.1"
+criterion = "0.8.2"
 csv = "1.4.0"
 ndarray-csv = "0.5.4"
 

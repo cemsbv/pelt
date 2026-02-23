@@ -1,8 +1,10 @@
 //! Predict implementation.
 
-use ahash::AHashMap;
+use std::collections::HashMap;
+
 use fearless_simd::Level;
 use ndarray::{ArrayView, Dimension};
+use rustc_hash::FxBuildHasher;
 use smallvec::SmallVec;
 
 use crate::{Error, OneOrTwoDimensions, Pelt};
@@ -11,8 +13,6 @@ use crate::{Error, OneOrTwoDimensions, Pelt};
 pub struct PredictImpl {
     /// Pelt data.
     pelt: Pelt,
-    /// `partitions[t]` stores the optimal partition of `signal[0..t]`.
-    partitions: AHashMap<usize, Partition>,
     /// List of indices we can accept
     admissible: Vec<usize>,
     /// All subproblems.
@@ -26,11 +26,6 @@ impl PredictImpl {
     pub(crate) fn new(pelt: Pelt) -> Self {
         // Detect the SIMD mechanism at runtime
         let simd_level = Level::new();
-
-        // `partitions[t]` stores the optimal partition of `signal[0..t]`
-        let mut partitions = AHashMap::new();
-        partitions.insert(0, Partition::default());
-
         // List of indices we can accept
         let admissible = Vec::with_capacity(pelt.jump);
 
@@ -39,7 +34,6 @@ impl PredictImpl {
 
         Self {
             pelt,
-            partitions,
             admissible,
             subproblems,
             simd_level,
@@ -57,6 +51,12 @@ impl PredictImpl {
     {
         // Length as the rows
         let len = D::len_or_nrows(signal);
+
+        // `partitions[t]` stores the optimal partition of `signal[0..t]`
+        // Pre-allocate at least the number of partitions, it will still grow somewhat
+        let mut partitions =
+            HashMap::with_capacity_and_hasher(signal.len() / self.pelt.jump, FxBuildHasher);
+        partitions.insert(0, Partition::default());
 
         // Find the initial changepoint indices
         for breakpoint in self.proposed_indices(len) {
@@ -78,15 +78,15 @@ impl PredictImpl {
                 .should_use_threading(self.admissible.len())
             {
                 // Use all available threads
-                self.par_split_into_subproblems(breakpoint, signal, penalty)?;
+                self.par_split_into_subproblems(&partitions, breakpoint, signal, penalty)?;
             } else {
                 // Keep using a single thread
-                self.split_into_subproblems(breakpoint, signal, penalty)?;
+                self.split_into_subproblems(&partitions, breakpoint, signal, penalty)?;
             }
 
             // Split admissible into sub problems
             #[cfg(not(feature = "rayon"))]
-            self.split_into_subproblems(breakpoint, signal, penalty)?;
+            self.split_into_subproblems(&partitions, breakpoint, signal, penalty)?;
 
             // Find the optimal partition with the lowest loss
             let min_subproblem = self
@@ -99,7 +99,7 @@ impl PredictImpl {
                 .ok_or(Error::NotEnoughPoints)?;
 
             // Assign optimal partition to the map
-            self.partitions.insert(breakpoint, min_subproblem.clone());
+            partitions.insert(breakpoint, min_subproblem.clone());
 
             // Threshold loss to filter each partition
             let loss_current_part = min_subproblem.loss_and_penalty_sum() + penalty;
@@ -119,7 +119,7 @@ impl PredictImpl {
         }
 
         // Get the best partition
-        let best_part = self.partitions.remove(&len).ok_or(Error::NoSegmentsFound)?;
+        let best_part = partitions.remove(&len).ok_or(Error::NoSegmentsFound)?;
 
         // Extract the indices
         let mut indices = best_part.ranges;
@@ -153,6 +153,7 @@ impl PredictImpl {
     #[inline]
     fn split_into_subproblems<D>(
         &mut self,
+        partitions: &HashMap<usize, Partition, FxBuildHasher>,
         breakpoint: usize,
         signal: &ArrayView<f64, D>,
         penalty: f64,
@@ -165,7 +166,7 @@ impl PredictImpl {
 
         let iter = self.admissible.iter().map(|admissible_start| {
             // Handle case where there's no partitions yet, shouldn't happen
-            let Some(partition) = self.partitions.get(admissible_start) else {
+            let Some(partition) = partitions.get(admissible_start) else {
                 branches::mark_unlikely();
                 // Store the error
                 result = Err(Error::NotEnoughPoints);
@@ -208,6 +209,7 @@ impl PredictImpl {
     #[inline]
     fn par_split_into_subproblems<D>(
         &mut self,
+        partitions: &HashMap<usize, Partition, FxBuildHasher>,
         breakpoint: usize,
         signal: &ArrayView<f64, D>,
         penalty: f64,
@@ -227,7 +229,7 @@ impl PredictImpl {
 
         let iter = self.admissible.par_iter().map(|admissible_start| {
             // Handle case where there's no partitions yet, shouldn't happen
-            let Some(partition) = self.partitions.get(admissible_start) else {
+            let Some(partition) = partitions.get(admissible_start) else {
                 branches::mark_unlikely();
                 // Store the error
                 error.store(Error::NotEnoughPoints.into_error_u8(), Ordering::Relaxed);

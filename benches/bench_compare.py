@@ -28,8 +28,8 @@ def benchmark(dim, segment, data, repeat):
 
     # Test ruptures N times
     ruptures_result = timeit.repeat(ruptures, repeat=repeat, number=1)
-    # Test pelt N times
-    pelt_result = timeit.repeat(pelt, repeat=repeat, number=1)
+    # Test pelt N * 100 times
+    pelt_result = timeit.repeat(pelt, repeat=repeat * 100, number=1)
 
     # Take the mean as millisecond
     ruptures_mean = fmean(ruptures_result)
@@ -47,15 +47,15 @@ def main():
     print("| Cost Function | Data Points | Data Dimension | Mean `pelt` | Mean `ruptures` | Times Faster |")
     print("| -- | -- | -- | -- | -- | -- |")
 
-    benchmark(1, "l2", 100, 100)
-    benchmark(2, "l2", 100, 100)
+    benchmark(1, "l2", 100, 1000)
+    benchmark(2, "l2", 100, 1000)
     benchmark(1, "l2", 1000, 10)
     benchmark(2, "l2", 1000, 10)
     benchmark(1, "l2", 10000, 2)
     benchmark(2, "l2", 10000, 2)
 
-    benchmark(1, "l1", 100, 100)
-    benchmark(2, "l1", 100, 100)
+    benchmark(1, "l1", 100, 1000)
+    benchmark(2, "l1", 100, 1000)
     benchmark(1, "l1", 1000, 10)
     benchmark(2, "l1", 1000, 10)
     benchmark(1, "l1", 10000, 2)

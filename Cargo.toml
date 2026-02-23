@@ -18,16 +18,14 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["rayon"]
-rayon = [
-  "dep:rayon",
-]
+rayon = ["dep:rayon"]
 python = ["dep:numpy", "dep:pyo3"]
 
 [dependencies]
-ahash = "0.8.12"
 branches = { default-features = false, version = "0.4.4" }
 fearless_simd = "0.4.0"
 ndarray = { default-features = false, version = "0.17.2" }
+rustc-hash = "2.1.1"
 smallvec = "2.0.0-alpha.12"
 thiserror = { default-features = false, version = "2.0.18" }
 
@@ -36,7 +34,7 @@ rayon = { optional = true, version = "1.11.0" }
 
 # Behind `python` feature flag
 numpy = { optional = true, version = "0.28.0" }
-pyo3 = { features = ["extension-module"], optional = true, version = "0.28.2" }
+pyo3 = { features = ["extension-module"], optional = true, version = "0.28.0" }
 
 [dev-dependencies]
 criterion = "0.8.2"

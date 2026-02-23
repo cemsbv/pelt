@@ -10,6 +10,9 @@ mod python;
 use std::num::NonZero;
 
 pub use cost::SegmentCostFunction;
+// Exposed for benchmarks
+#[doc(hidden)]
+pub use cost::l2::{L2Cost1D, L2Cost2D};
 pub use dim::OneOrTwoDimensions;
 pub use error::Error;
 use ndarray::{AsArray, Dimension};
@@ -91,6 +94,7 @@ impl Pelt {
     ) -> Result<Vec<usize>, Error>
     where
         D: OneOrTwoDimensions + Dimension,
+        D::PrecalculationOutput: Sync,
     {
         let signal_view = signal.into();
 

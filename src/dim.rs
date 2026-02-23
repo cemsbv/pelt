@@ -2,8 +2,12 @@
 
 use std::ops::Range;
 
-use fearless_simd::Level;
 use ndarray::{ArrayView, ArrayView1, ArrayView2, Dimension, Ix1, Ix2};
+
+use crate::{
+    SegmentCostFunction,
+    cost::{Cost1D, Cost2D},
+};
 
 /// Don't allow other crates to implement this.
 mod sealed {
@@ -18,37 +22,55 @@ mod sealed {
 
 /// Trait allowing the input array to be both 1 and two dimensional.
 pub trait OneOrTwoDimensions: Dimension + sealed::Sealed {
+    type PrecalculationOutput;
+
     /// Amount of rows.
     #[doc(hidden)]
     fn len_or_nrows(array: &ArrayView<f64, Self>) -> usize;
 
+    /// Precalculate function.
+    #[doc(hidden)]
+    fn precalculate(
+        cost: SegmentCostFunction,
+        signal: &ArrayView<f64, Self>,
+    ) -> Self::PrecalculationOutput;
+
+    /// Calculate the loss.
+    #[doc(hidden)]
+    fn loss(
+        cost: &Self::PrecalculationOutput,
+        signal: &ArrayView<f64, Self>,
+        range: Range<usize>,
+    ) -> f64;
+
     /// Convert to 1D if possible.
     #[doc(hidden)]
     fn try_as_1d<'a>(array: &'a ArrayView<f64, Self>) -> Option<ArrayView1<'a, f64>>;
-
-    /// L1 cost function.
-    #[doc(hidden)]
-    fn l1(signal: &ArrayView<f64, Self>, range: Range<usize>) -> f64;
-
-    /// L2 cost function.
-    #[doc(hidden)]
-    fn l2(simd_level: Level, signal: &ArrayView<f64, Self>, range: Range<usize>) -> f64;
 }
 
 impl OneOrTwoDimensions for Ix1 {
+    type PrecalculationOutput = Cost1D;
+
     #[inline]
     fn len_or_nrows(array: &ArrayView1<f64>) -> usize {
         array.len()
     }
 
     #[inline]
-    fn l1(signal: &ArrayView1<f64>, range: Range<usize>) -> f64 {
-        crate::cost::l1_1d(signal, range)
+    fn precalculate(
+        cost: SegmentCostFunction,
+        signal: &ArrayView1<f64>,
+    ) -> Self::PrecalculationOutput {
+        Self::PrecalculationOutput::precalculate(cost, signal)
     }
 
     #[inline]
-    fn l2(simd_level: Level, signal: &ArrayView1<f64>, range: Range<usize>) -> f64 {
-        crate::cost::l2_1d(simd_level, signal, range)
+    fn loss(
+        cost: &Self::PrecalculationOutput,
+        signal: &ArrayView1<f64>,
+        range: Range<usize>,
+    ) -> f64 {
+        cost.loss(signal, range)
     }
 
     #[inline]
@@ -58,19 +80,28 @@ impl OneOrTwoDimensions for Ix1 {
 }
 
 impl OneOrTwoDimensions for Ix2 {
+    type PrecalculationOutput = Cost2D;
+
     #[inline]
     fn len_or_nrows(array: &ArrayView2<f64>) -> usize {
         array.nrows()
     }
 
     #[inline]
-    fn l1(signal: &ArrayView2<f64>, range: Range<usize>) -> f64 {
-        crate::cost::l1_2d(signal, range)
+    fn precalculate(
+        cost: SegmentCostFunction,
+        signal: &ArrayView2<f64>,
+    ) -> Self::PrecalculationOutput {
+        Self::PrecalculationOutput::precalculate(cost, signal)
     }
 
     #[inline]
-    fn l2(simd_level: Level, signal: &ArrayView2<f64>, range: Range<usize>) -> f64 {
-        crate::cost::l2_2d(simd_level, signal, range)
+    fn loss(
+        cost: &Self::PrecalculationOutput,
+        signal: &ArrayView2<f64>,
+        range: Range<usize>,
+    ) -> f64 {
+        cost.loss(signal, range)
     }
 
     #[inline]

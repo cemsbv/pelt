@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 
-use fearless_simd::Level;
 use ndarray::{ArrayView, Dimension};
 use rustc_hash::FxBuildHasher;
 use smallvec::SmallVec;
@@ -17,15 +16,11 @@ pub struct PredictImpl {
     admissible: Vec<usize>,
     /// All subproblems.
     subproblems: Vec<Partition>,
-    /// What SIMD features we can use.
-    simd_level: Level,
 }
 
 impl PredictImpl {
     /// Setup the structures.
     pub(crate) fn new(pelt: Pelt) -> Self {
-        // Detect the SIMD mechanism at runtime
-        let simd_level = Level::new();
         // List of indices we can accept
         let admissible = Vec::with_capacity(pelt.jump);
 
@@ -36,7 +31,6 @@ impl PredictImpl {
             pelt,
             admissible,
             subproblems,
-            simd_level,
         }
     }
 
@@ -48,6 +42,7 @@ impl PredictImpl {
     ) -> Result<Vec<usize>, Error>
     where
         D: OneOrTwoDimensions + Dimension,
+        D::PrecalculationOutput: Sync,
     {
         // Length as the rows
         let len = D::len_or_nrows(signal);
@@ -57,6 +52,9 @@ impl PredictImpl {
         let mut partitions =
             HashMap::with_capacity_and_hasher(signal.len() / self.pelt.jump, FxBuildHasher);
         partitions.insert(0, Partition::default());
+
+        // Precalculate the cost function
+        let cost = D::precalculate(self.pelt.segment_cost_function, signal);
 
         // Find the initial changepoint indices
         for breakpoint in self.proposed_indices(len) {
@@ -78,15 +76,15 @@ impl PredictImpl {
                 .should_use_threading(self.admissible.len())
             {
                 // Use all available threads
-                self.par_split_into_subproblems(&partitions, breakpoint, signal, penalty)?;
+                self.par_split_into_subproblems(&partitions, &cost, breakpoint, signal, penalty)?;
             } else {
                 // Keep using a single thread
-                self.split_into_subproblems(&partitions, breakpoint, signal, penalty)?;
+                self.split_into_subproblems(&partitions, &cost, breakpoint, signal, penalty)?;
             }
 
             // Split admissible into sub problems
             #[cfg(not(feature = "rayon"))]
-            self.split_into_subproblems(&partitions, breakpoint, signal, penalty)?;
+            self.split_into_subproblems(&partitions, &cost, breakpoint, signal, penalty)?;
 
             // Find the optimal partition with the lowest loss
             let min_subproblem = self
@@ -154,6 +152,7 @@ impl PredictImpl {
     fn split_into_subproblems<D>(
         &mut self,
         partitions: &HashMap<usize, Partition, FxBuildHasher>,
+        cost: &D::PrecalculationOutput,
         breakpoint: usize,
         signal: &ArrayView<f64, D>,
         penalty: f64,
@@ -187,11 +186,7 @@ impl PredictImpl {
             }
 
             // Calculate loss function for the admissible range
-            let loss = self.pelt.segment_cost_function.loss(
-                self.simd_level,
-                signal,
-                *admissible_start..breakpoint,
-            );
+            let loss = D::loss(cost, signal, *admissible_start..breakpoint);
 
             // Update with the right partition
             let mut new_partition = partition.clone();
@@ -210,12 +205,14 @@ impl PredictImpl {
     fn par_split_into_subproblems<D>(
         &mut self,
         partitions: &HashMap<usize, Partition, FxBuildHasher>,
+        cost: &D::PrecalculationOutput,
         breakpoint: usize,
         signal: &ArrayView<f64, D>,
         penalty: f64,
     ) -> Result<(), Error>
     where
         D: OneOrTwoDimensions + Dimension,
+        D::PrecalculationOutput: Sync,
     {
         use rayon::iter::{
             IntoParallelRefIterator as _, ParallelExtend as _, ParallelIterator as _,
@@ -250,11 +247,7 @@ impl PredictImpl {
             }
 
             // Calculate loss function for the admissible range
-            let loss = self.pelt.segment_cost_function.loss(
-                self.simd_level,
-                signal,
-                *admissible_start..breakpoint,
-            );
+            let loss = D::loss(cost, signal, *admissible_start..breakpoint);
 
             // Update with the right partition
             let mut new_partition = partition.clone();

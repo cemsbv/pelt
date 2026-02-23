@@ -4,10 +4,9 @@ use std::io::Cursor;
 
 use criterion::{BenchmarkId, Criterion, Throughput};
 use csv::ReaderBuilder;
-use fearless_simd::Level;
-use ndarray::Array2;
+use ndarray::{Array2, Ix2};
 use ndarray_csv::Array2Reader as _;
-use pelt::{Pelt, SegmentCostFunction};
+use pelt::{OneOrTwoDimensions as _, Pelt, SegmentCostFunction};
 
 /// Benchmark the different groups and cases.
 fn benchmark(criterion: &mut Criterion) {
@@ -66,12 +65,15 @@ fn benchmark(criterion: &mut Criterion) {
 
                 group.bench_with_input(
                     BenchmarkId::new(parameter, size),
-                    &(Level::new(), signal.view()),
-                    |benchmark, (simd_level, signal)| {
+                    &(
+                        signal.view(),
+                        Ix2::precalculate(segment_cost_function, &signal.view()),
+                    ),
+                    |benchmark, (signal, cost)| {
                         benchmark.iter(|| {
                             // Run the benchmark
-                            segment_cost_function.loss(
-                                std::hint::black_box(*simd_level),
+                            Ix2::loss(
+                                std::hint::black_box(cost),
                                 std::hint::black_box(signal),
                                 std::hint::black_box(0..size),
                             )

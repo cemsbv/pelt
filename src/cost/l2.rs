@@ -114,6 +114,7 @@ mod tests {
         assert_eq!(result, 200.0);
     }
 
+    /// Check the L2 cost function.
     #[test]
     fn cost_2d() {
         let array_2d = ndarray::array![[10.0], [30.0], [20.0]];

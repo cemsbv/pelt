@@ -20,8 +20,13 @@ impl KthSmallestTree {
     /// Construct the tree from a slice of values.
     #[inline]
     pub fn build(values: &ArrayView1<f64>) -> Self {
-        let roots = Vec::new();
-        let nodes = Vec::with_capacity(4 * values.len());
+        let roots = Vec::with_capacity(values.len());
+
+        // Allocate at least n * log2(n) nodes plus a root
+        let nodes = Vec::with_capacity(
+            values.len() * values.len().next_power_of_two().ilog2() as usize + 1,
+        );
+
         let len = values.len() as u32;
 
         let mut sorted = values.to_vec();
@@ -66,57 +71,49 @@ impl KthSmallestTree {
     }
 
     /// Find the K-th element.
-    #[inline]
     pub fn kth(&self, range: RangeInclusive<usize>, kth: usize) -> f64 {
-        // Find the index into the sorted array
-        let index = self.kth_impl(
-            self.roots[*range.end() + 1],
-            self.roots[*range.start()],
-            1..=self.len,
-            kth as i32,
-        );
+        // Get the root node at the end
+        let mut current_node = &self.nodes[self.roots[*range.end() + 1] as usize];
+        // Get the root node at the start
+        let mut previous_node = &self.nodes[self.roots[*range.start()] as usize];
 
-        self.sorted[index as usize - 1]
-    }
+        // Indices range to look for
+        let mut start = 1_u32;
+        let mut end = self.len;
 
-    /// Find the K-th element in the sorted array.
-    fn kth_impl(
-        &self,
-        current_index: u32,
-        previous_index: u32,
-        range: RangeInclusive<u32>,
-        kth: i32,
-    ) -> u32 {
-        // Return item if narrowed down
-        if range.start() == range.end() {
-            return *range.start();
+        let mut kth = kth as i32;
+
+        // Walk until item found
+        while start != end {
+            let current_left_node = &self.nodes[current_node.left_index as usize];
+            let previous_left_node = &self.nodes[previous_node.left_index as usize];
+
+            // Difference of sizes of the left nodes
+            let left_size = current_left_node.count - previous_left_node.count;
+
+            let mid = start.midpoint(end);
+
+            // Find the offset point to go left or right
+            if kth <= left_size {
+                current_node = current_left_node;
+                previous_node = previous_left_node;
+
+                // start..=mid
+                end = mid;
+            } else {
+                current_node = &self.nodes[current_node.right_index as usize];
+                previous_node = &self.nodes[previous_node.right_index as usize];
+
+                // mid+1..=end
+                start = mid + 1;
+
+                // Move to the right region
+                kth -= left_size;
+            }
         }
 
-        let current_node = self.nodes[current_index as usize].clone();
-        let previous_node = self.nodes[previous_index as usize].clone();
-
-        // Difference of sizes of the left nodes
-        let left_size = self.nodes[current_node.left_index as usize].count
-            - self.nodes[previous_node.left_index as usize].count;
-
-        let mid = range.start().midpoint(*range.end());
-
-        // Find the offset point to go left or right
-        if kth <= left_size {
-            self.kth_impl(
-                current_node.left_index,
-                previous_node.left_index,
-                Self::left_range(&range, mid),
-                kth,
-            )
-        } else {
-            self.kth_impl(
-                current_node.right_index,
-                previous_node.right_index,
-                Self::right_range(&range, mid),
-                kth - left_size,
-            )
-        }
+        // Leaf found
+        self.sorted[start as usize - 1]
     }
 
     /// Recursive implementation of creating a new version.
@@ -161,13 +158,13 @@ impl KthSmallestTree {
     }
 
     /// Get the left ranges separated by the midpoint.
-    #[inline]
+    #[inline(always)]
     const fn left_range(range: &RangeInclusive<u32>, mid: u32) -> RangeInclusive<u32> {
         *range.start()..=mid
     }
 
     /// Get the right ranges separated by the midpoint.
-    #[inline]
+    #[inline(always)]
     const fn right_range(range: &RangeInclusive<u32>, mid: u32) -> RangeInclusive<u32> {
         (mid + 1)..=*range.end()
     }

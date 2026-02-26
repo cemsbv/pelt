@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2026-02-26
+
+### Bug Fixes
+
+- *Deps*:
+    - Use released `fearless_simd` version instead of git
+    - Update patch version of dependencies
+    - Update all non-major dependencies to 0.28.0 (#8)
+
+### Performance
+
+- *L2*:
+    - Convert recursive query to iterative approach
+    - Improve L2 performance by using a persistent segment tree
+    - Drastically improve L2 cost function by using sum queries
+- *Predict*: Pre-allocate predictions with different hash
+
 ## [0.3.0] - 2025-12-24
 
 ### Documentation

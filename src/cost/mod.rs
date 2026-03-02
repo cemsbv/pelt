@@ -56,10 +56,10 @@ impl Cost1D {
 
     /// Calculate the loss.
     #[inline]
-    pub(crate) fn loss(&self, signal: &ArrayView1<f64>, range: Range<usize>) -> f64 {
+    pub(crate) fn loss(&self, total_loss: &mut f64, signal: &ArrayView1<f64>, range: Range<usize>) {
         match self {
-            Self::L1(cost) => cost.loss(signal, range),
-            Self::L2(cost) => cost.loss(range),
+            Self::L1(cost) => cost.loss(total_loss, signal, range),
+            Self::L2(cost) => cost.loss(total_loss, range),
         }
     }
 }
@@ -85,10 +85,10 @@ impl Cost2D {
 
     /// Calculate the loss.
     #[inline]
-    pub(crate) fn loss(&self, signal: &ArrayView2<f64>, range: Range<usize>) -> f64 {
+    pub(crate) fn loss(&self, total_loss: &mut f64, signal: &ArrayView2<f64>, range: Range<usize>) {
         match self {
-            Self::L1(cost) => cost.loss(signal, range),
-            Self::L2(cost) => cost.loss(range),
+            Self::L1(cost) => cost.loss(total_loss, signal, range),
+            Self::L2(cost) => cost.loss(total_loss, range),
         }
     }
 }

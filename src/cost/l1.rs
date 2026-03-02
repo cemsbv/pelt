@@ -24,7 +24,7 @@ impl L1Cost1D {
 
     /// Calculate the loss.
     #[inline]
-    pub(crate) fn loss(&self, signal: &ArrayView1<f64>, range: Range<usize>) -> f64 {
+    pub(crate) fn loss(&self, total_loss: &mut f64, signal: &ArrayView1<f64>, range: Range<usize>) {
         // Calculate the median for the segment
         let median = self.median(range.clone());
 
@@ -33,9 +33,8 @@ impl L1Cost1D {
             .slice(ndarray::s!(range))
             // Calculate the absolute difference for each point with the median
             .iter()
-            .map(|signal| (*signal - median).abs())
-            // Sum all values
-            .sum()
+            // Sum the values
+            .for_each(|signal| *total_loss += (*signal - median).abs());
     }
 
     /// Get the median of a range in the signal.
@@ -90,13 +89,14 @@ impl L1Cost2D {
     ///
     /// Calculated using Welford's algorithm.
     #[inline]
-    pub(crate) fn loss(&self, signal: &ArrayView2<f64>, range: Range<usize>) -> f64 {
+    pub(crate) fn loss(&self, total_loss: &mut f64, signal: &ArrayView2<f64>, range: Range<usize>) {
         // Calculate total loss
         self.columns
             .iter()
             .zip(signal.columns())
-            .map(|(column, signal_column)| column.loss(&signal_column, range.clone()))
-            .sum()
+            .for_each(|(column, signal_column)| {
+                column.loss(total_loss, &signal_column, range.clone())
+            })
     }
 }
 
@@ -109,8 +109,9 @@ mod tests {
     fn cost_1d() {
         let array_1d = ndarray::array![10.0, 30.0, 20.0];
         let cost = L1Cost1D::precalculate(&array_1d.view());
-        let result = cost.loss(&array_1d.view(), 0..3);
-        assert_eq!(result, 20.0);
+        let mut loss = 0.0;
+        cost.loss(&mut loss, &array_1d.view(), 0..3);
+        assert_eq!(loss, 20.0);
     }
 
     /// Check the L1 cost function.
@@ -118,7 +119,8 @@ mod tests {
     fn cost_2d() {
         let array_2d = ndarray::array![[10.0], [30.0], [20.0]];
         let cost = L1Cost2D::precalculate(&array_2d.view());
-        let result = cost.loss(&array_2d.view(), 0..3);
-        assert_eq!(result, 20.0);
+        let mut loss = 0.0;
+        cost.loss(&mut loss, &array_2d.view(), 0..3);
+        assert_eq!(loss, 20.0);
     }
 }

@@ -39,9 +39,10 @@ pub trait OneOrTwoDimensions: Dimension + sealed::Sealed {
     #[doc(hidden)]
     fn loss(
         cost: &Self::PrecalculationOutput,
+        total_loss: &mut f64,
         signal: &ArrayView<f64, Self>,
         range: Range<usize>,
-    ) -> f64;
+    );
 
     /// Convert to 1D if possible.
     #[doc(hidden)]
@@ -67,10 +68,11 @@ impl OneOrTwoDimensions for Ix1 {
     #[inline]
     fn loss(
         cost: &Self::PrecalculationOutput,
+        total_loss: &mut f64,
         signal: &ArrayView1<f64>,
         range: Range<usize>,
-    ) -> f64 {
-        cost.loss(signal, range)
+    ) {
+        cost.loss(total_loss, signal, range)
     }
 
     #[inline]
@@ -98,10 +100,11 @@ impl OneOrTwoDimensions for Ix2 {
     #[inline]
     fn loss(
         cost: &Self::PrecalculationOutput,
+        total_loss: &mut f64,
         signal: &ArrayView2<f64>,
         range: Range<usize>,
-    ) -> f64 {
-        cost.loss(signal, range)
+    ) {
+        cost.loss(total_loss, signal, range)
     }
 
     #[inline]

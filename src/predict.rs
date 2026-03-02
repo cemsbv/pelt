@@ -186,7 +186,8 @@ impl PredictImpl {
             }
 
             // Calculate loss function for the admissible range
-            let loss = D::loss(cost, signal, *admissible_start..breakpoint);
+            let mut loss = 0.0;
+            D::loss(cost, &mut loss, signal, *admissible_start..breakpoint);
 
             // Update with the right partition
             let mut new_partition = partition.clone();
@@ -247,7 +248,8 @@ impl PredictImpl {
             }
 
             // Calculate loss function for the admissible range
-            let loss = D::loss(cost, signal, *admissible_start..breakpoint);
+            let mut loss = 0.0;
+            D::loss(cost, &mut loss, signal, *admissible_start..breakpoint);
 
             // Update with the right partition
             let mut new_partition = partition.clone();

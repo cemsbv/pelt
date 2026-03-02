@@ -37,7 +37,7 @@ impl L2Cost1D {
     ///
     /// Calculated using Welford's algorithm.
     #[inline]
-    pub(crate) fn loss(&self, range: Range<usize>) -> f64 {
+    pub(crate) fn loss(&self, total_loss: &mut f64, range: Range<usize>) {
         // How many rows there are
         let rows_length = range.end.saturating_sub(range.start) as f64;
 
@@ -56,7 +56,7 @@ impl L2Cost1D {
         let sum_squared = right.sum_squared - left.sum_squared;
 
         // Calculate sum of squares using Welford's algorithm
-        sum_squared - sum.powi(2) / rows_length
+        *total_loss += sum_squared - sum.powi(2) / rows_length;
     }
 }
 
@@ -83,12 +83,11 @@ impl L2Cost2D {
     ///
     /// Calculated using Welford's algorithm.
     #[inline]
-    pub(crate) fn loss(&self, range: Range<usize>) -> f64 {
+    pub(crate) fn loss(&self, total_loss: &mut f64, range: Range<usize>) {
         // Calculate total loss
         self.columns
             .iter()
-            .map(|column| column.loss(range.clone()))
-            .sum()
+            .for_each(|column| column.loss(total_loss, range.clone()));
     }
 }
 
@@ -110,8 +109,9 @@ mod tests {
     fn cost_1d() {
         let array_1d = ndarray::array![10.0, 30.0, 20.0];
         let cost = L2Cost1D::precalculate(&array_1d.view());
-        let result = cost.loss(0..3);
-        assert_eq!(result, 200.0);
+        let mut loss = 0.0;
+        cost.loss(&mut loss, 0..3);
+        assert_eq!(loss, 200.0);
     }
 
     /// Check the L2 cost function.
@@ -119,7 +119,8 @@ mod tests {
     fn cost_2d() {
         let array_2d = ndarray::array![[10.0], [30.0], [20.0]];
         let cost = L2Cost2D::precalculate(&array_2d.view());
-        let result = cost.loss(0..3);
-        assert_eq!(result, 200.0);
+        let mut loss = 0.0;
+        cost.loss(&mut loss, 0..3);
+        assert_eq!(loss, 200.0);
     }
 }

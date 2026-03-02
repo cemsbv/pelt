@@ -72,8 +72,10 @@ fn benchmark(criterion: &mut Criterion) {
                     |benchmark, (signal, cost)| {
                         benchmark.iter(|| {
                             // Run the benchmark
+                            let mut loss = 0.0;
                             Ix2::loss(
                                 std::hint::black_box(cost),
+                                std::hint::black_box(&mut loss),
                                 std::hint::black_box(signal),
                                 std::hint::black_box(0..size),
                             )

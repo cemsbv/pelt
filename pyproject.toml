@@ -25,3 +25,7 @@ features = ["pyo3/extension-module"]
 strip = true
 bindings = "pyo3"
 module-name = "pelt"
+
+# Create an SBOM
+[tool.maturin.sbom]
+rust = true

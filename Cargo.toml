@@ -33,7 +33,7 @@ rayon = { optional = true, version = "1.11.0" }
 
 # Behind `python` feature flag
 numpy = { optional = true, version = "0.28.0" }
-pyo3 = { features = ["extension-module"], optional = true, version = "0.28.2" }
+pyo3 = { features = ["extension-module", "abi3-py311"], optional = true, version = "0.28.2" }
 
 [dev-dependencies]
 criterion = "0.8.2"

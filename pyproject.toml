@@ -1,17 +1,23 @@
 [project]
 name = "pelt"
-version = "0.3.1"
-description = "Changepoint detection with Pruned Exact Linear Time"
+# Load fields from Cargo.toml
+dynamic = [
+  "version",
+  "license",
+  "description",
+  "keywords",
+  "author",
+  "author_email",
+  "project_url",
+]
 requires-python = ">=3.11"
 readme = "README.md"
-license = { file = "LICENSE" }
-keywords = ["changepoint"]
-authors = [{ name = "Thomas Versteeg", email = "t.versteeg@cemsbv.io" }]
 classifiers = [
   "Programming Language :: Rust",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
+dependencies = ["numpy>=1.16.0"]
 
 [project.urls]
 repository = "https://github.com/cemsbv/pelt"
@@ -21,7 +27,8 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [tool.maturin]
-features = ["pyo3/extension-module"]
+features = ["python"]
+profile = "release"
 strip = true
 bindings = "pyo3"
 module-name = "pelt"

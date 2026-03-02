@@ -47,7 +47,7 @@ source .env/bin/activate
 pip install maturin numpy
 
 # Create a Python package from the Rust code
-maturin develop --features python
+maturin develop
 
 # Open an interpreter
 python
@@ -87,7 +87,7 @@ Comparison with [ruptures](https://centre-borelli.github.io/ruptures-docs/code-r
 <summary>Command</summary>
 
 ```sh
-maturin develop --features python --release
+maturin develop
 python benches/bench_compare.py
 ```
 

@@ -3,13 +3,19 @@
 use std::ops::RangeInclusive;
 
 use ndarray::ArrayView1;
+#[cfg(feature = "rayon")]
+use rayon::slice::ParallelSliceMut as _;
 
 /// Persistent segment tree for finding the K-th smallest value datastructure.
 pub struct KthSmallestTree {
     /// Each root is a different version.
     roots: Vec<u32>,
-    /// Total map of all nodes.
-    nodes: Vec<Node>,
+    /// Total map of all node counts.
+    ///
+    /// We keep this separate from the nodes as a performance optimization, since it will only be accessed on the left children in the `kth()` implementation.
+    counts: Vec<u32>,
+    /// Total map of all node siblings.
+    siblings: Vec<Node>,
     /// Sorted and unique values.
     sorted: Vec<f64>,
     /// Size of the original value array.
@@ -20,49 +26,62 @@ impl KthSmallestTree {
     /// Construct the tree from a slice of values.
     #[inline]
     pub fn build(values: &ArrayView1<f64>) -> Self {
+        assert!(values.len() < u32::MAX as usize - 1, "Input array too big");
+
         let roots = Vec::with_capacity(values.len());
 
         // Allocate at least n * log2(n) nodes plus a root
-        let nodes = Vec::with_capacity(
-            values.len() * values.len().next_power_of_two().ilog2() as usize + 1,
-        );
+        let total_estimate = values.len() * values.len().next_power_of_two().ilog2() as usize + 1;
+        let siblings = Vec::with_capacity(total_estimate);
+        let counts = Vec::with_capacity(total_estimate);
 
         let len = values.len() as u32;
 
         let mut sorted = values.to_vec();
         // Sort the values
-        sorted.sort_by(f64::total_cmp);
+        #[cfg(feature = "rayon")]
+        sorted.par_sort_unstable_by(f64::total_cmp);
+        #[cfg(not(feature = "rayon"))]
+        sorted.sort_unstable_by(f64::total_cmp);
+
         // Remove duplicates
         sorted.dedup();
 
         let mut this = Self {
             roots,
-            nodes,
+            siblings,
+            counts,
             len,
             sorted: sorted.clone(),
         };
 
         // Build the zero version of the tree
-        this.nodes.push(Node {
-            count: 0,
+        this.siblings.push(Node {
             left_index: 0,
             right_index: 0,
         });
+        this.counts.push(0);
         this.roots.push(0);
 
-        // Add each value as a version update
-        for value in values.iter() {
-            // Lookup the index of the value but make it one-based
-            let index = sorted
-                .binary_search_by(|sorted_value| f64::total_cmp(sorted_value, value))
-                .unwrap_or_default()
-                + 1;
+        // Get each index
+        let indices: Vec<u32> = values
+            .iter()
+            .map(|value| {
+                // Lookup the index of the value but make it one-based
+                sorted
+                    .binary_search_by(|sorted_value| f64::total_cmp(sorted_value, value))
+                    .unwrap_or_default()
+                    .saturating_add(1) as u32
+            })
+            .collect();
 
+        // Add each value index as a version update
+        for index in indices {
             // Use one based indexing
             let root = this.insert(
                 *this.roots.last().expect("Building root failed"),
                 1..=len,
-                index as u32,
+                index,
             );
             this.roots.push(root);
         }
@@ -71,38 +90,38 @@ impl KthSmallestTree {
     }
 
     /// Find the K-th element.
-    pub fn kth(&self, range: RangeInclusive<usize>, kth: usize) -> f64 {
+    pub fn kth(&self, range: RangeInclusive<usize>, mut kth: usize) -> f64 {
         // Get the root node at the end
-        let mut current_node = &self.nodes[self.roots[*range.end() + 1] as usize];
+        let mut current_node = &self.siblings[self.roots[*range.end() + 1] as usize];
         // Get the root node at the start
-        let mut previous_node = &self.nodes[self.roots[*range.start()] as usize];
+        let mut previous_node = &self.siblings[self.roots[*range.start()] as usize];
 
         // Indices range to look for
         let mut start = 1_u32;
         let mut end = self.len;
 
-        let mut kth = kth as i32;
-
         // Walk until item found
         while start != end {
-            let current_left_node = &self.nodes[current_node.left_index as usize];
-            let previous_left_node = &self.nodes[previous_node.left_index as usize];
-
             // Difference of sizes of the left nodes
-            let left_size = current_left_node.count - previous_left_node.count;
+            let left_size = {
+                let current_left_count = self.counts[current_node.left_index as usize];
+                let previous_left_count = self.counts[previous_node.left_index as usize];
+
+                (current_left_count as usize).saturating_sub(previous_left_count as usize)
+            };
 
             let mid = start.midpoint(end);
 
             // Find the offset point to go left or right
             if kth <= left_size {
-                current_node = current_left_node;
-                previous_node = previous_left_node;
+                current_node = &self.siblings[current_node.left_index as usize];
+                previous_node = &self.siblings[previous_node.left_index as usize];
 
                 // start..=mid
                 end = mid;
             } else {
-                current_node = &self.nodes[current_node.right_index as usize];
-                previous_node = &self.nodes[previous_node.right_index as usize];
+                current_node = &self.siblings[current_node.right_index as usize];
+                previous_node = &self.siblings[previous_node.right_index as usize];
 
                 // mid+1..=end
                 start = mid + 1;
@@ -121,14 +140,18 @@ impl KthSmallestTree {
         debug_assert!(update_index >= *range.start(), "{update_index} {range:?}");
         debug_assert!(update_index <= *range.end(), "{update_index} {range:?}");
 
+        let current_index = current_index as usize;
+
         // Copy the previous node
-        let mut node = self.nodes[current_index as usize].clone();
-        node.count += 1;
+        let mut node = self.siblings[current_index];
+        let mut count = self.counts[current_index];
+        count += 1;
 
         // If narrowed down to a leaf, push a new node and return it
         if range.start() == range.end() {
-            let index = self.nodes.len() as u32;
-            self.nodes.push(node);
+            let index = self.siblings.len() as u32;
+            self.siblings.push(node);
+            self.counts.push(count);
 
             return index;
         }
@@ -139,42 +162,25 @@ impl KthSmallestTree {
         // Update the two branches of a node
         if update_index <= mid {
             // Update the left half
-            node.left_index =
-                self.insert(node.left_index, Self::left_range(&range, mid), update_index);
+            node.left_index = self.insert(node.left_index, *range.start()..=mid, update_index);
         } else {
             // Update the right half
-            node.right_index = self.insert(
-                node.right_index,
-                Self::right_range(&range, mid),
-                update_index,
-            );
+            node.right_index =
+                self.insert(node.right_index, (mid + 1)..=*range.end(), update_index);
         };
 
         // Push the node
-        let index = self.nodes.len() as u32;
-        self.nodes.push(node);
+        let index = self.siblings.len() as u32;
+        self.siblings.push(node);
+        self.counts.push(count);
 
         index
-    }
-
-    /// Get the left ranges separated by the midpoint.
-    #[inline(always)]
-    const fn left_range(range: &RangeInclusive<u32>, mid: u32) -> RangeInclusive<u32> {
-        *range.start()..=mid
-    }
-
-    /// Get the right ranges separated by the midpoint.
-    #[inline(always)]
-    const fn right_range(range: &RangeInclusive<u32>, mid: u32) -> RangeInclusive<u32> {
-        (mid + 1)..=*range.end()
     }
 }
 
 /// Persistent segment tree node.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Node {
-    /// Value of the node.
-    count: i32,
     /// Left child.
     left_index: u32,
     /// Right child.

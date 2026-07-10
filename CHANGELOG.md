@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.2] - 2026-07-10
+
+### Bug Fixes
+- *Deps*: Update pyo3 and numpy to 0.29
+
+### Documentation
+
+- *Python*:
+    - Don't break Rust test
+    - Configure "Read the Docs"
+
+### Features
+- *Python*: Include SBOM
+
+### Miscellaneous Tasks
+- *Cargo*: Only include required files for Crates.io
+- *Maturin*: Fix build on manylinux
+- *Python*: Define Python dependencies, simplify release flags
+
+### Performance
+- *Cost*: Reduce iterator complexity by passing sum float
+- *Median*: Use structure of arrays for better cache locality
+
 ## [0.3.1] - 2026-02-26
 
 ### Bug Fixes

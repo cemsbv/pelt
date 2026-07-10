@@ -13,16 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          default: true
       - uses: PyO3/maturin-action@v1
         with:
-          manylinux: auto
           command: build
-          args: --features python --release --sdist -o dist
+          args: --features python --release --sdist -o dist --find-interpreter
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:
@@ -33,11 +27,6 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          default: true
       - uses: PyO3/maturin-action@v1
         with:
           command: build
@@ -52,11 +41,6 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          default: true
       - uses: PyO3/maturin-action@v1
         with:
           command: build

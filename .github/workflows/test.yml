@@ -75,7 +75,7 @@ jobs:
       - uses: actions/checkout@v6
 
       # Install python with numpy
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
       - run: python -m pip install --upgrade pip && pip install numpy
 
       # Install rust stable

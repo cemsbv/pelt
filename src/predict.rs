@@ -166,7 +166,8 @@ impl PredictImpl {
         let iter = self.admissible.iter().map(|admissible_start| {
             // Handle case where there's no partitions yet, shouldn't happen
             let Some(partition) = partitions.get(admissible_start) else {
-                branches::mark_unlikely();
+                std::hint::cold_path();
+
                 // Store the error
                 result = Err(Error::NotEnoughPoints);
 
@@ -175,9 +176,9 @@ impl PredictImpl {
             };
 
             // Handle invalid case for too short segments
-            if branches::unlikely(
-                breakpoint.saturating_sub(*admissible_start) < self.pelt.minimum_segment_length,
-            ) {
+            if breakpoint.saturating_sub(*admissible_start) < self.pelt.minimum_segment_length {
+                std::hint::cold_path();
+
                 // Store the error
                 result = Err(Error::NotEnoughPoints);
 
@@ -228,7 +229,8 @@ impl PredictImpl {
         let iter = self.admissible.par_iter().map(|admissible_start| {
             // Handle case where there's no partitions yet, shouldn't happen
             let Some(partition) = partitions.get(admissible_start) else {
-                branches::mark_unlikely();
+                std::hint::cold_path();
+
                 // Store the error
                 error.store(Error::NotEnoughPoints.into_error_u8(), Ordering::Relaxed);
 
@@ -237,9 +239,9 @@ impl PredictImpl {
             };
 
             // Handle invalid case for too short segments
-            if branches::unlikely(
-                breakpoint.saturating_sub(*admissible_start) < self.pelt.minimum_segment_length,
-            ) {
+            if breakpoint.saturating_sub(*admissible_start) < self.pelt.minimum_segment_length {
+                std::hint::cold_path();
+
                 // Store the error
                 error.store(Error::NotEnoughPoints.into_error_u8(), Ordering::Relaxed);
 

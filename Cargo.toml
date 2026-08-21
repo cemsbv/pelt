@@ -2,7 +2,7 @@
 name = "pelt"
 version = "0.3.4"
 edition = "2024"
-rust-version = "1.95.0"
+rust-version = "1.98.0"
 authors = ["Thomas Versteeg <t.versteeg@cemsbv.io>"]
 description = "Changepoint detection with Pruned Exact Linear Time"
 keywords = ["changepoint"]

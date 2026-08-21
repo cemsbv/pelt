@@ -100,7 +100,7 @@ impl PredictImpl {
             partitions.insert(breakpoint, min_subproblem.clone());
 
             // Threshold loss to filter each partition
-            let loss_current_part = min_subproblem.loss_and_penalty_sum() + penalty;
+            let loss_current_part = min_subproblem.loss_and_penalty_sum().algebraic_add(penalty);
 
             // We apply a zip to the subproblems manually
             self.admissible.resize(self.subproblems.len(), 0);
@@ -281,7 +281,10 @@ impl Partition {
     pub fn push(&mut self, range: usize, loss: f64, penalty: f64) {
         self.ranges.push(range);
 
-        self.loss_and_penalty_sum = self.loss_and_penalty_sum + loss + penalty;
+        self.loss_and_penalty_sum = self
+            .loss_and_penalty_sum
+            .algebraic_add(loss)
+            .algebraic_add(penalty);
     }
 
     /// Get the sum of the loss and penalty.

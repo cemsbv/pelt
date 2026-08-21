@@ -17,15 +17,16 @@ impl L2Cost1D {
         // Calculate the sum of all previous values
         let mut sums = vec![Sums::default(); signal.len()];
         // Sum all previous numbers
-        let mut sum_counter = 0.0;
+        let mut sum_counter = 0.0_f64;
         // Sum the squares of all previous numbers
-        let mut sum_squared_counter = 0.0;
+        let mut sum_squared_counter = 0.0_f64;
 
         sums.iter_mut()
             .zip(signal.iter())
             .for_each(|(sums, signal)| {
-                sum_counter += *signal;
-                sum_squared_counter += signal.powi(2);
+                sum_counter = sum_counter.algebraic_add(*signal);
+                sum_squared_counter =
+                    sum_squared_counter.algebraic_add(signal.algebraic_mul(*signal));
                 sums.sum = sum_counter;
                 sums.sum_squared = sum_squared_counter;
             });
@@ -52,11 +53,13 @@ impl L2Cost1D {
         let right = &self.sums[range.end.saturating_sub(1)];
 
         // Use the sum query to find the sums
-        let sum = right.sum - left.sum;
-        let sum_squared = right.sum_squared - left.sum_squared;
+        let sum = right.sum.algebraic_sub(left.sum);
+        let sum_squared = right.sum_squared.algebraic_sub(left.sum_squared);
 
         // Calculate sum of squares using Welford's algorithm
-        *total_loss += sum_squared - sum.powi(2) / rows_length;
+        *total_loss = total_loss.algebraic_add(
+            sum_squared.algebraic_sub(sum.algebraic_mul(sum).algebraic_div(rows_length)),
+        );
     }
 }
 

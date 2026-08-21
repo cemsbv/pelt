@@ -34,7 +34,9 @@ impl L1Cost1D {
             // Calculate the absolute difference for each point with the median
             .iter()
             // Sum the values
-            .for_each(|signal| *total_loss += (*signal - median).abs());
+            .for_each(|signal| {
+                *total_loss = total_loss.algebraic_add(signal.algebraic_sub(median).abs())
+            });
     }
 
     /// Get the median of a range in the signal.

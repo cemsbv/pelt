@@ -13,7 +13,7 @@ jobs:
       BENCHER_API_TOKEN: ${{ secrets.BENCHER_API_TOKEN }}
     steps:
       # Checkout the main branch
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Install rust stable
       - uses: dtolnay/rust-toolchain@master

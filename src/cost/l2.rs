@@ -43,10 +43,10 @@ impl L2Cost1D {
         let rows_length = range.end.saturating_sub(range.start) as f64;
 
         // Take the left values or zero if the range is zero
-        // We use a wrapping sub for that so when it overflows the get will always return `None`
-        let left = self
-            .sums
-            .get(range.start.wrapping_sub(1))
+        let left = range
+            .start
+            .checked_sub(1)
+            .and_then(|index| self.sums.get(index))
             .cloned()
             .unwrap_or_default();
 
